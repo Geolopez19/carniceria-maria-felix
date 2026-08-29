@@ -1,0 +1,32 @@
+{
+  "name": "sistema-multiservicios-leiva-vue",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@primevue/themes": "^4.2.5",
+    "@supabase/supabase-js": "^2.47.10",
+    "@tanstack/vue-query": "^5.62.7",
+    "chart.js": "^4.5.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
+    "lucide-vue-next": "^0.468.0",
+    "pinia": "^2.3.0",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.2.5",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "vite": "^6.0.3"
+  }
+}
