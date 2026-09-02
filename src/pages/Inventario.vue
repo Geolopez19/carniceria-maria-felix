@@ -599,17 +599,14 @@ const imprimirEtiquetasMasivo = (paquetesSeleccionados) => {
   paquetesSeleccionados.forEach((paquete, index) => {
     labelHTML += `
       <div class="label-container">
-        <h2 class="title">${prod.nombre}</h2>
-        <div class="subtitle">CARNICERÍA MARÍA FÉLIX</div>
-        <div class="peso">${Number(paquete.peso).toFixed(2)} ${prod.unidad_medida || 'lbs'}</div>
-        <div class="precio">TOTAL: C$${Number(paquete.precio_total).toFixed(2)}</div>
-        <div class="fechas">
-          Empacado: ${new Date(paquete.fecha_empaque).toLocaleDateString('es-NI')}<br>
-          Vence: ${paquete.fecha_vencimiento ? new Date(paquete.fecha_vencimiento).toLocaleDateString('es-NI') : 'Sin vencimiento'}
+        <div style="width:100%">
+          <div class="business-name">CARNICERÍA MARÍA FÉLIX</div>
+          <h2 class="title">${prod.nombre}</h2>
+          <div class="peso">${Number(paquete.peso).toFixed(2)} ${prod.unidad_medida || 'lbs'}</div>
+          <div class="precio">TOTAL: C$${Number(paquete.precio_total).toFixed(2)}</div>
         </div>
         <div class="barcode-wrapper">
           <svg class="barcode-svg" data-code="${paquete.codigo_barras}"></svg>
-          <div class="lote-text">Lote: ${paquete.lotes?.codigo_lote || '—'}</div>
         </div>
       </div>
     `
@@ -625,7 +622,7 @@ const imprimirEtiquetasMasivo = (paquetesSeleccionados) => {
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
         <style>
           @page {
-            size: 102mm 51mm;
+            size: 56.0mm 38.0mm;
             margin: 0;
           }
           @media print {
@@ -642,64 +639,63 @@ const imprimirEtiquetasMasivo = (paquetesSeleccionados) => {
             -webkit-print-color-adjust: exact;
           }
           .label-container {
-            width: 102mm;
-            height: 51mm;
+            width: 56.0mm;
+            height: 38.0mm;
             box-sizing: border-box;
-            padding: 3mm 5mm;
+            padding: 1.2mm 2mm;
             text-align: center;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: Arial, Helvetica, sans-serif;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: 1mm;
+          }
+          .business-name {
+            font-size: 7.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: normal;
+            white-space: nowrap;
+            border-bottom: 1px solid #000;
+            padding-bottom: 1px;
+            margin-bottom: 1px;
+            width: 100%;
           }
           .title {
             font-size: 13px;
-            font-weight: bold;
-            margin: 0;
+            font-weight: 900;
+            margin: 1px 0 2px 0;
             text-transform: uppercase;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
-          }
-          .subtitle {
-            font-size: 8px;
-            font-weight: bold;
-            margin-top: 1px;
-            color: #555;
+            line-height: 1.1;
           }
           .peso {
-            font-size: 24px;
+            font-size: 23px;
             font-weight: 900;
-            margin: 3px 0 1px 0;
+            margin: 1px 0 0 0;
             font-family: Arial, sans-serif;
+            line-height: 1;
           }
           .precio {
-            font-size: 15px;
-            font-weight: bold;
-            margin: 0 0 3px 0;
-          }
-          .fechas {
-            font-size: 8px;
-            line-height: 1.1;
-            color: #333;
+            font-size: 14px;
+            font-weight: 900;
+            margin: 1px 0 0 0;
           }
           .barcode-wrapper {
-            margin-top: 2px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 100%;
+            overflow: hidden;
           }
           .barcode-svg {
-            height: 32px;
-            max-width: 90%;
-          }
-          .lote-text {
-            font-size: 7px;
-            color: #666;
-            margin-top: 1px;
+            height: 24px;
+            max-width: 95%;
           }
         </style>
       </head>
@@ -713,10 +709,12 @@ const imprimirEtiquetasMasivo = (paquetesSeleccionados) => {
               JsBarcode(svg, code, {
                 format: "CODE128",
                 lineColor: "#000",
-                width: 1.5,
-                height: 28,
+                width: 1.3,
+                height: 22,
                 displayValue: true,
-                fontSize: 9,
+                fontSize: 8.5,
+                fontOptions: "bold",
+                font: "Arial",
                 margin: 0
               });
             });

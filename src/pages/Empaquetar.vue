@@ -193,44 +193,25 @@
 
           <div 
             id="etiqueta-empaquetado" 
-            class="bg-white p-6 border border-slate-200 rounded-xl shadow-2xs w-full max-w-[280px] flex flex-col items-center text-center font-sans tracking-tight"
+            class="bg-white p-2.5 border border-slate-200 rounded-xl shadow-2xs w-[224px] h-[152px] flex flex-col justify-center items-center text-center font-sans tracking-tight gap-1"
           >
-            <h3 class="font-black text-sm text-slate-800 uppercase tracking-wide leading-none truncate max-w-full">
-              {{ selectedProduct ? selectedProduct.nombre : 'PRODUCTO' }}
-            </h3>
-            <p class="text-[12px] font-black text-indigo-700 tracking-wider uppercase mt-1 mb-1 border-b border-indigo-100 pb-1 w-full">
-              CARNICERÍA MARÍA FÉLIX
-            </p>
-            
-            <div class="text-3xl font-black text-slate-900 font-mono mt-3 mb-1">
-              {{ form.peso ? form.peso.toFixed(2) : '0.00' }} {{ selectedProduct ? selectedProduct.unidad_medida : 'LB' }}
-            </div>
-            
-            <div class="text-lg font-bold text-indigo-600 leading-none">
-              C${{ form.precioTotal ? form.precioTotal.toFixed(2) : '0.00' }}
-            </div>
-
-            <div class="text-[9px] text-slate-500 font-mono mt-2">
-              Empacado: {{ formatFechaString(new Date()) }} <br>
-              Vence: {{ form.fechaVencimiento ? form.fechaVencimiento : 'Sin vencimiento' }}
-            </div>
-            
-            <div class="mt-4 flex items-center justify-between gap-2 w-full bg-slate-50 p-2 rounded border border-slate-100">
-              <!-- Código de barras -->
-              <div class="flex flex-col items-center flex-1 min-w-0">
-                <svg id="barcode-canvas-empaque" class="max-w-full h-10"></svg>
-                <span class="text-[8px] text-slate-400 font-mono mt-0.5 truncate max-w-full">
-                  Lote: {{ selectedLote ? selectedLote.codigo_lote : '—' }}
-                </span>
+            <div class="w-full">
+              <p class="text-[7.5px] font-black text-indigo-700 uppercase border-b border-indigo-200 pb-0.5 mb-1 w-full truncate">
+                CARNICERÍA MARÍA FÉLIX
+              </p>
+              <h3 class="font-black text-sm text-slate-900 uppercase tracking-wide leading-tight truncate max-w-full mb-0.5">
+                {{ selectedProduct ? selectedProduct.nombre : 'PRODUCTO' }}
+              </h3>
+              <div class="text-2xl font-black text-slate-950 font-mono leading-none my-0.5">
+                {{ form.peso ? form.peso.toFixed(2) : '0.00' }} {{ selectedProduct ? selectedProduct.unidad_medida : 'LB' }}
               </div>
-              
-              <!-- Código QR -->
-              <div v-if="qrPreviewUrl" class="flex flex-col items-center shrink-0 pl-1.5 border-l border-slate-200">
-                <img :src="qrPreviewUrl" alt="Código QR" class="w-12 h-12 object-contain" />
-                <span class="text-[7px] text-indigo-600 font-mono mt-0.5 max-w-[65px] truncate font-bold text-center" :title="effectiveQrText">
-                  {{ effectiveQrText }}
-                </span>
+              <div class="text-sm font-black text-indigo-700 leading-none">
+                TOTAL: C${{ form.precioTotal ? form.precioTotal.toFixed(2) : '0.00' }}
               </div>
+            </div>
+            
+            <div class="w-full flex flex-col items-center bg-slate-50 p-1 rounded border border-slate-100 mt-1">
+              <svg id="barcode-canvas-empaque" class="max-w-full h-8"></svg>
             </div>
           </div>
 
@@ -572,7 +553,7 @@ const imprimirEtiquetaLayout = async (paquete) => {
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
         <style>
           @page {
-            size: 102mm 51mm;
+            size: 56.0mm 38.0mm;
             margin: 0;
           }
           * {
@@ -591,132 +572,79 @@ const imprimirEtiquetaLayout = async (paquete) => {
             image-rendering: crisp-edges;
           }
           .label-container {
-            width: 102mm;
-            height: 51mm;
+            width: 56.0mm;
+            height: 38.0mm;
             box-sizing: border-box;
-            padding: 2mm 4mm;
+            padding: 1.2mm 2mm;
             text-align: center;
             font-family: Arial, Helvetica, sans-serif;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
+            gap: 1mm;
+          }
+          .business-name {
+            font-size: 7.5px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: normal;
+            white-space: nowrap;
+            border-bottom: 1px solid #000;
+            padding-bottom: 1px;
+            margin-bottom: 1px;
+            width: 100%;
           }
           .title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 900;
-            margin: 0;
+            margin: 1px 0 2px 0;
             text-transform: uppercase;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
             color: #000;
-          }
-          .subtitle {
-            font-size: 11px;
-            font-weight: 900;
-            margin-top: 1px;
-            margin-bottom: 2px;
-            color: #000;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 1.5px solid #000;
-            padding-bottom: 1px;
-            width: 100%;
+            line-height: 1.1;
           }
           .peso {
-            font-size: 26px;
+            font-size: 23px;
             font-weight: 900;
-            margin: 1px 0;
+            margin: 1px 0 0 0;
             font-family: Arial, Helvetica, sans-serif;
             color: #000;
             line-height: 1;
           }
           .precio {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 900;
-            margin: 0 0 2px 0;
+            margin: 1px 0 0 0;
             color: #000;
-          }
-          .fechas {
-            font-size: 9px;
-            font-weight: bold;
-            line-height: 1.2;
-            color: #000;
-          }
-          .codes-row {
-            margin-top: 1px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            padding: 0 2mm;
           }
           .barcode-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
-            flex: 1;
+            width: 100%;
             overflow: hidden;
           }
           .barcode-svg {
-            height: 30px;
+            height: 24px;
             max-width: 95%;
-          }
-          .lote-text {
-            font-size: 8px;
-            font-weight: bold;
-            color: #000;
-            margin-top: 1px;
-          }
-          .qr-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-left: 6px;
-            shrink: 0;
-          }
-          .qr-img {
-            width: 14mm;
-            height: 14mm;
-            object-fit: contain;
-          }
-          .qr-text {
-            font-size: 7px;
-            font-weight: bold;
-            font-family: Arial, sans-serif;
-            color: #000;
-            margin-top: 1px;
-            max-width: 20mm;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
           }
         </style>
       </head>
       <body>
         <div class="label-container">
-          <h2 class="title">${selectedProduct.value.nombre}</h2>
-          <div class="subtitle">CARNICERÍA MARÍA FÉLIX</div>
-          <div class="peso">${Number(paquete.peso).toFixed(2)} ${selectedProduct.value.unidad_medida || 'lbs'}</div>
-          <div class="precio">TOTAL: C$${Number(paquete.precio_total).toFixed(2)}</div>
-          <div class="fechas">
-            Empacado: ${new Date(paquete.fecha_empaque).toLocaleDateString('es-NI')}<br>
-            Vence: ${paquete.fecha_vencimiento ? new Date(paquete.fecha_vencimiento).toLocaleDateString('es-NI') : 'Sin vencimiento'}
+          <div style="width:100%">
+            <div class="business-name">CARNICERÍA MARÍA FÉLIX</div>
+            <h2 class="title">${selectedProduct.value.nombre}</h2>
+            <div class="peso">${Number(paquete.peso).toFixed(2)} ${selectedProduct.value.unidad_medida || 'lbs'}</div>
+            <div class="precio">TOTAL: C$${Number(paquete.precio_total).toFixed(2)}</div>
           </div>
-          <div class="codes-row">
-            <div class="barcode-wrapper">
-              <svg id="barcode-svg"></svg>
-              <div class="lote-text">Lote: ${selectedLote.value ? selectedLote.value.codigo_lote : '—'}</div>
-            </div>
-            ${qrDataUrl ? `
-            <div class="qr-wrapper">
-              <img src="${qrDataUrl}" class="qr-img" />
-              <div class="qr-text">${qrContent}</div>
-            </div>
-            ` : ''}
+          <div class="barcode-wrapper">
+            <svg id="barcode-svg"></svg>
           </div>
         </div>
         <script>
@@ -724,10 +652,10 @@ const imprimirEtiquetaLayout = async (paquete) => {
             JsBarcode("#barcode-svg", "${paquete.codigo_barras}", {
               format: "CODE128",
               lineColor: "#000",
-              width: 1.8,
-              height: 28,
+              width: 1.3,
+              height: 22,
               displayValue: true,
-              fontSize: 9,
+              fontSize: 8.5,
               fontOptions: "bold",
               font: "Arial",
               margin: 0
