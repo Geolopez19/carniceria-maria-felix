@@ -392,7 +392,7 @@ const confirmFinalize = () => {
         const saved = await savePurchase()
         if (!saved) return
 
-        await finalizePurchase(currentPurchase.value.id)
+        await finalizePurchase(currentPurchase.value.id, items.value)
         currentPurchase.value.status = 'completed'
         showSuccess('Abastecimiento completado exitosamente')
         queryClient.invalidateQueries({ queryKey: ['purchases'] })

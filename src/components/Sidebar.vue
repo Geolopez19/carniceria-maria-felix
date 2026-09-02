@@ -18,8 +18,8 @@
         v-if="!isCollapsed"
         class="flex flex-col whitespace-nowrap transition-opacity duration-300" 
       >
-        <span class="text-xl font-bold tracking-tight">Leiva Multi</span>
-        <span class="text-xs text-indigo-200">Sistema de Gestión</span>
+        <span class="text-xl font-bold tracking-tight">María Félix</span>
+        <span class="text-xs text-indigo-200">Carnicería</span>
       </div>
     </div>
 

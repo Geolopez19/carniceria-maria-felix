@@ -5,7 +5,7 @@
         <div class="bg-indigo-600 p-3 rounded-2xl mb-4 shadow-lg shadow-indigo-200">
           <Package class="w-8 h-8 text-white" />
         </div>
-        <h1 class="text-2xl font-bold text-slate-800">Multiservicios Leiva</h1>
+        <h1 class="text-2xl font-bold text-slate-800">Carnicería María Félix</h1>
         <p class="text-slate-500">{{ isRecoveryMode ? 'Establece tu nueva contraseña' : 'Bienvenido, ingresa tus credenciales' }}</p>
       </div>
 

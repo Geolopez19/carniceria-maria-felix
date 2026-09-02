@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-7xl mx-auto">
     <!-- Receipt Ticket (Hidden on screen, visible on print) -->
-    <div class="hidden print:block fixed inset-0 bg-white z-[9999]">
+    <div class="hidden print:block fixed inset-0 bg-white z-[9999] print-container">
        <ReceiptTicket :order="printingOrder" :items="printingItems" :business="businessStore.settings" />
     </div>
 

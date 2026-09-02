@@ -106,7 +106,7 @@
                       class="text-base sm:text-lg font-bold bg-opacity-10 px-2 py-0.5 rounded-lg border border-opacity-20 flex-1 sm:flex-none"
                       :class="isPurple ? 'text-purple-600 bg-purple-50 border-purple-100' : 'text-indigo-600 bg-indigo-50 border-indigo-100'"
                     >
-                      {{ formatCurrency(option.precio) }}
+                      {{ formatCurrency(option.precio) }} / {{ option.unidad_medida || 'lb' }}
                     </span>
 
                     <div
@@ -125,7 +125,7 @@
                             : 'pi-times-circle'
                         "
                       ></i>
-                      <span>Stock: {{ option.stock }}</span>
+                      <span>Stock: {{ option.stock }} {{ option.unidad_medida || 'lbs' }}</span>
                     </div>
                   </div>
 
@@ -236,9 +236,12 @@ const selectProduct = (e) => {
 }
 
 const openCreateModal = () => {
-    // Pre-fill name with search text if it looks like a name
+    const text = searchText.value ? searchText.value.trim() : ''
+    const isDigits = /^\d+$/.test(text) && text.length >= 4
+
     initialCreateData.value = {
-        nombre: searchText.value,
+        codigo: isDigits ? text : '',
+        nombre: isDigits ? '' : text,
         categoria: '',
         stock: 0,
         precio: 0,

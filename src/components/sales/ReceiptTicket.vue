@@ -3,7 +3,7 @@
   <div class="receipt-container hidden print:block bg-white text-black font-mono text-xs leading-tight">
     <!-- Header -->
     <div class="text-center mb-2">
-      <h2 class="text-sm font-bold uppercase tracking-wider mb-1">{{ business?.name || 'Multiservicios Leiva' }}</h2>
+      <h2 class="text-sm font-bold uppercase tracking-wider mb-1">{{ business?.name || 'Carnicería María Félix' }}</h2>
       <p v-if="business?.ruc" class="text-[10px] text-gray-600">R.U.C: {{ business.ruc }}</p>
       <p v-if="business?.address" class="text-[10px]">{{ business.address }}</p>
       <p v-if="business?.phone" class="text-[10px]">Tel: {{ business.phone }}</p>
@@ -77,7 +77,7 @@
     <div class="text-center text-[10px] space-y-1">
       <p>*** GRACIAS POR SU COMPRA ***</p>
       <p>No se aceptan devoluciones después de 30 días.</p>
-      <p class="mt-2 text-[9px] text-gray-400">Sistema: {{ business?.name || 'Multiservicios Leiva' }}</p>
+      <p class="mt-2 text-[9px] text-gray-400">Sistema: {{ business?.name || 'Carnicería María Félix' }}</p>
     </div>
   </div>
 </template>
@@ -127,8 +127,7 @@ const formatDate = (dateString) => {
     width: 80mm; /* Standard thermal width */
     max-width: 100%;
     margin: 0 auto;
-    padding: 10px; /* Safe padding */ 
-    page-break-after: always;
+    padding: 5px; /* Safe padding */ 
   }
 
   /* Force black text for thermal printers */

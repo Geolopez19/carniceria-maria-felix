@@ -33,7 +33,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="space-y-2">
                 <label class="text-sm font-medium text-slate-700">Nombre del Negocio</label>
-                <InputText v-model="form.name" class="w-full" placeholder="Ej. Multiservicios Leiva" />
+                <InputText v-model="form.name" class="w-full" placeholder="Ej. Carnicería María Félix" />
               </div>
               <div class="space-y-2">
                 <label class="text-sm font-medium text-slate-700">RUC / ID Fiscal</label>

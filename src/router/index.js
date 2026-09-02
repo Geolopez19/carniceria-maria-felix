@@ -22,6 +22,11 @@ const routes = [
         component: () => import('../pages/Inventario.vue')
       },
       {
+        path: 'inventario/empaquetar',
+        name: 'Empaquetar',
+        component: () => import('../pages/Empaquetar.vue')
+      },
+      {
         path: 'ventas',
         redirect: '/ventas/ofertas',
         children: [

@@ -14,7 +14,7 @@ export async function getProductos({
     .select('*', { count: 'exact' })
 
   if (search) {
-    query = query.ilike('nombre', `%${search}%`)
+    query = query.or(`nombre.ilike.%${search}%,codigo.ilike.%${search}%`)
   }
 
   if (categoria) {
@@ -43,13 +43,17 @@ export async function getProductos({
 export async function addProducto(producto) {
   if (!producto.nombre) throw new Error('El producto debe tener nombre')
 
+  const stockInicial = producto.stock ? Number(producto.stock) : 0
   const { data, error } = await supabase
     .from('productos')
     .insert([{
       nombre: producto.nombre.trim(),
       codigo: producto.codigo?.trim() || null,
       categoria: producto.categoria?.trim() || null,
-      stock: producto.stock ? Number(producto.stock) : 0,
+      unidad_medida: producto.unidad_medida || 'lbs',
+      tipo_venta: producto.tipo_venta || 'UNIDAD',
+      stock_granel: stockInicial,
+      stock_empacado: 0,
       precio: producto.precio ? Number(producto.precio) : 0,
       descripcion: producto.descripcion?.trim() || null
     }])
@@ -62,15 +66,15 @@ export async function addProducto(producto) {
 
   const productoCreado = data?.[0]
 
-  if (productoCreado && productoCreado.stock > 0) {
+  if (productoCreado && stockInicial > 0) {
     try {
       await registrarMovimiento({
         producto_id: productoCreado.id,
         producto_nombre: productoCreado.nombre,
         tipo: 'entrada',
-        cantidad: productoCreado.stock,
+        cantidad: stockInicial,
         stock_anterior: 0,
-        stock_nuevo: productoCreado.stock,
+        stock_nuevo: stockInicial,
         motivo: 'Ingreso inicial'
       })
     } catch (err) {
@@ -86,13 +90,19 @@ export async function updateProducto(id, producto) {
 
   const { data: productoAnterior } = await supabase
     .from('productos')
-    .select('stock, nombre')
+    .select('stock, stock_granel, stock_empacado, nombre')
     .eq('id', id)
     .single()
 
   const stockAnterior = productoAnterior?.stock || 0
-  const stockNuevo = producto.stock ? Number(producto.stock) : 0
-  const diferencia = stockNuevo - stockAnterior
+  const stockGranelAnterior = productoAnterior?.stock_granel || 0
+  const stockEmpacadoAnterior = productoAnterior?.stock_empacado || 0
+
+  const stockGranelNuevo = producto.stock_granel !== undefined ? Number(producto.stock_granel) : (producto.stock !== undefined ? Number(producto.stock) : stockGranelAnterior)
+  const stockEmpacadoNuevo = producto.stock_empacado !== undefined ? Number(producto.stock_empacado) : stockEmpacadoAnterior
+
+  const stockNuevoTotal = stockGranelNuevo + stockEmpacadoNuevo
+  const diferencia = stockNuevoTotal - stockAnterior
 
   const { data, error } = await supabase
     .from('productos')
@@ -100,7 +110,10 @@ export async function updateProducto(id, producto) {
       nombre: producto.nombre?.trim(),
       codigo: producto.codigo?.trim() || null,
       categoria: producto.categoria?.trim(),
-      stock: stockNuevo,
+      unidad_medida: producto.unidad_medida || 'lbs',
+      tipo_venta: producto.tipo_venta || 'UNIDAD',
+      stock_granel: stockGranelNuevo,
+      stock_empacado: stockEmpacadoNuevo,
       precio: producto.precio ? Number(producto.precio) : 0,
       descripcion: producto.descripcion?.trim() || null
     })
@@ -122,7 +135,7 @@ export async function updateProducto(id, producto) {
         tipo: diferencia > 0 ? 'entrada' : 'salida',
         cantidad: Math.abs(diferencia),
         stock_anterior: stockAnterior,
-        stock_nuevo: stockNuevo,
+        stock_nuevo: productoActualizado.stock || stockNuevoTotal,
         motivo: diferencia > 0 ? 'Ajuste de inventario (entrada)' : 'Ajuste de inventario (salida)'
       })
     } catch (err) {
@@ -175,5 +188,21 @@ export async function deleteProducto(id) {
   }
 
   return true
+}
+
+export async function getProductoByCodigo(codigo) {
+  if (!codigo) return null
+  const cleanCode = codigo.trim()
+  const { data, error } = await supabase
+    .from('productos')
+    .select('*')
+    .eq('codigo', cleanCode)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error buscando producto por código:', error.message)
+    throw error
+  }
+  return data
 }
 

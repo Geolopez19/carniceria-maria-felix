@@ -1,5 +1,5 @@
 {
-  "name": "sistema-multiservicios-leiva-vue",
+  "name": "carniceria-maria-felix-vue",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,11 +14,13 @@
     "@tanstack/vue-query": "^5.62.7",
     "chart.js": "^4.5.1",
     "html2canvas": "^1.4.1",
+    "jsbarcode": "^3.12.3",
     "jspdf": "^2.5.2",
     "lucide-vue-next": "^0.468.0",
     "pinia": "^2.3.0",
     "primeicons": "^7.0.0",
     "primevue": "^4.2.5",
+    "qrcode": "^1.5.4",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },

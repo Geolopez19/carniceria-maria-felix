@@ -11,8 +11,8 @@
           <div class="text-base lg:text-sm text-indigo-900 lg:text-slate-600 font-bold lg:font-semibold flex items-center gap-2">
             <!-- Mobile Título Corto / Logo Reducido -->
             <Package class="w-6 h-6 lg:hidden text-indigo-600" />
-            <span class="lg:hidden capitalize">{{ ($route.name || 'Leiva Multi').replace('-', ' ') }}</span>
-            <span class="hidden lg:block">Sistema de Gestión Multiservicios Leiva</span>
+            <span class="lg:hidden capitalize">{{ ($route.name || 'María Félix').replace('-', ' ') }}</span>
+            <span class="hidden lg:block">Sistema de Gestión Carnicería María Félix</span>
           </div>
         </div>
         <div class="flex items-center gap-4">

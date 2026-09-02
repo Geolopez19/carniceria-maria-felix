@@ -21,7 +21,7 @@ export async function createDraftOrder() {
 }
 
 export async function upsertItems(items) {
-  const clean = items.map(i => ({ id: i.id, order_id: i.order_id, product_id: i.product_id, product_name: i.product_name, qty: i.qty, unit_price: i.unit_price, discount: i.discount || 0, tax_rate: i.tax_rate || 0, line_total: i.line_total }))
+  const clean = items.map(i => ({ id: i.id, order_id: i.order_id, product_id: i.product_id, product_name: i.product_name, qty: i.qty, unit_price: i.unit_price, discount: i.discount || 0, tax_rate: i.tax_rate || 0, line_total: i.line_total, package_id: i.package_id || null }))
   const { data, error } = await supabase.from('sales_order_items').upsert(clean).select()
   if (error) throw error
   return data
@@ -55,19 +55,6 @@ export async function deleteOrder(orderId) {
 export async function finalizeOrder(orderId) {
   const { data, error } = await supabase.rpc('fn_finalize_order', { p_order_id: orderId })
   if (error) throw error
-  try {
-    const items = await getOrderItems(orderId)
-    for (const item of items) {
-      if (item.product_id && item.qty > 0) {
-        const { data: producto } = await supabase.from('productos').select('stock, nombre').eq('id', item.product_id).single()
-        if (producto) {
-          const stockAnterior = producto.stock + item.qty
-          const stockNuevo = producto.stock
-          await registrarMovimiento({ producto_id: item.product_id, producto_nombre: item.product_name || producto.nombre, tipo: 'salida', cantidad: item.qty, stock_anterior: stockAnterior, stock_nuevo: stockNuevo, motivo: `Venta - Factura #${data?.invoice_number || orderId}` })
-        }
-      }
-    }
-  } catch (err) { console.warn(err) }
   return data
 }
 
