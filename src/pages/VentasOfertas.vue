@@ -95,6 +95,15 @@
             />
           </template>
         </Column>
+        <Column field="payment_method" header="Pago" style="min-width: 130px">
+          <template #body="{ data }">
+            <span v-if="data.payment_method" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+              <i :class="getPaymentMethodIcon(data.payment_method)" class="text-indigo-600 text-[11px]"></i>
+              {{ getPaymentMethodLabel(data.payment_method) }}
+            </span>
+            <span v-else class="text-xs text-slate-400 italic">—</span>
+          </template>
+        </Column>
         <Column field="total" header="Total">
           <template #body="{ data }">
             <span class="font-bold text-indigo-600">{{
@@ -259,11 +268,107 @@
             @select="customerId = $event.id"
           />
 
+          <!-- Configuración de Oferta: Método de Pago e IVA -->
+          <div class="bg-white rounded-xl shadow-md border border-indigo-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-50 to-indigo-50/40 px-4 sm:px-6 py-3 border-b border-indigo-100 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="bg-indigo-100 p-1.5 rounded-md text-indigo-600">
+                  <i class="pi pi-credit-card text-lg"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-800">Condiciones de Venta</h3>
+              </div>
+              <span class="text-xs text-slate-500 font-medium">Requerido para facturar</span>
+            </div>
+
+            <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <!-- Método de Pago -->
+              <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <i class="pi pi-wallet text-indigo-500"></i>
+                  Método de Pago <span class="text-rose-500 text-sm">*</span>
+                </label>
+                <Select
+                  v-model="paymentMethod"
+                  :options="paymentMethodOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Seleccione un método de pago..."
+                  :disabled="readOnly"
+                  class="w-full"
+                  :class="{ 'p-invalid border-rose-400': paymentMethodError }"
+                  @change="paymentMethodError = false"
+                >
+                  <template #value="slotProps">
+                    <div v-if="slotProps.value" class="flex items-center gap-2">
+                      <i :class="getPaymentMethodIcon(slotProps.value)" class="text-indigo-600"></i>
+                      <span class="font-medium text-slate-800">{{ getPaymentMethodLabel(slotProps.value) }}</span>
+                    </div>
+                    <span v-else class="text-slate-400">{{ slotProps.placeholder }}</span>
+                  </template>
+                  <template #option="slotProps">
+                    <div class="flex items-center gap-2 py-1">
+                      <i :class="slotProps.option.icon" class="text-indigo-600 text-base w-5"></i>
+                      <span class="font-medium text-slate-700">{{ slotProps.option.label }}</span>
+                    </div>
+                  </template>
+                </Select>
+                <small v-if="paymentMethodError" class="text-rose-500 font-medium flex items-center gap-1">
+                  <i class="pi pi-exclamation-circle text-xs"></i> Seleccione un método de pago.
+                </small>
+                <small v-else class="text-slate-400 text-[11px]">
+                  Especifique cómo cancelará o cotiza el cliente.
+                </small>
+              </div>
+
+              <!-- Aplicar IVA Switch / Toggle -->
+              <div class="flex flex-col gap-2">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <i class="pi pi-percentage text-emerald-500"></i>
+                  Impuesto de Venta (IVA)
+                </label>
+                <div 
+                  class="flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none"
+                  :class="applyTax ? 'bg-emerald-50/60 border-emerald-300 shadow-xs' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100/70'"
+                  @click="toggleApplyTax"
+                >
+                  <div class="flex items-center gap-3">
+                    <div 
+                      class="w-6 h-6 rounded-md flex items-center justify-center transition-colors border"
+                      :class="applyTax ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-transparent'"
+                    >
+                      <i class="pi pi-check text-xs font-bold"></i>
+                    </div>
+                    <div>
+                      <span class="text-sm font-bold block" :class="applyTax ? 'text-emerald-800' : 'text-slate-700'">
+                        Aplicar IVA ({{ IVA_PORCENTAJE }}%)
+                      </span>
+                      <span class="text-[11px] block" :class="applyTax ? 'text-emerald-600 font-medium' : 'text-slate-400'">
+                        {{ applyTax ? 'El IVA se calcula sobre los productos' : 'Desactivado (Venta exenta de IVA)' }}
+                      </span>
+                    </div>
+                  </div>
+                  <Tag 
+                    :value="applyTax ? 'Con IVA' : 'Exento'" 
+                    :severity="applyTax ? 'success' : 'secondary'"
+                    class="text-[10px] uppercase font-bold px-2"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Productos -->
-          <SalesItemsTable v-model:items="items" :readOnly="readOnly" />
+          <SalesItemsTable 
+            v-model:items="items" 
+            :readOnly="readOnly" 
+            :applyTax="applyTax" 
+          />
 
           <!-- Resumen de Totales -->
-          <SalesTotals :totals="totals" />
+          <SalesTotals 
+            :totals="totals" 
+            :applyTax="applyTax" 
+          />
         </div>
 
         <!-- Acciones Fijas en la parte inferior -->
@@ -397,10 +502,31 @@ import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import { FilterMatchMode } from "@primevue/core/api";
 
+import Select from "primevue/select";
+import { IVA_PORCENTAJE } from "../constants";
+
 const businessStore = useBusinessStore();
 const queryClient = useQueryClient();
 const confirm = useConfirm();
 const vTooltip = Tooltip;
+
+// Opciones de métodos de pago
+const paymentMethodOptions = [
+  { label: "Efectivo", value: "efectivo", icon: "pi pi-money-bill" },
+  { label: "Tarjeta", value: "tarjeta", icon: "pi pi-credit-card" },
+  { label: "Transferencia bancaria", value: "transferencia", icon: "pi pi-send" },
+  { label: "Otro", value: "otro", icon: "pi pi-ellipsis-h" },
+];
+
+const getPaymentMethodLabel = (val) => {
+  const opt = paymentMethodOptions.find((o) => o.value === val);
+  return opt ? opt.label : val;
+};
+
+const getPaymentMethodIcon = (val) => {
+  const opt = paymentMethodOptions.find((o) => o.value === val);
+  return opt ? opt.icon : "pi pi-wallet";
+};
 
 // Search and filters
 const searchText = ref("");
@@ -431,14 +557,34 @@ const customer = ref({ name: "", phone: "", email: "" });
 const customerId = ref(null);
 const isSaving = ref(false);
 
+// Nuevos estados para Método de Pago e IVA (por defecto desactivados/vacíos)
+const paymentMethod = ref(null);
+const paymentMethodError = ref(false);
+const applyTax = ref(false);
+
+const toggleApplyTax = () => {
+  if (readOnly.value) return;
+  applyTax.value = !applyTax.value;
+  // Sincronizar los ítems actuales al nuevo estado de impuesto
+  items.value = items.value.map((item) => {
+    const taxRate = applyTax.value ? IVA_PORCENTAJE : 0;
+    const base = (Number(item.qty) || 0) * (Number(item.unit_price) || 0) - (Number(item.discount) || 0);
+    return {
+      ...item,
+      tax_rate: taxRate,
+      line_total: base + base * (taxRate / 100),
+    };
+  });
+};
+
 // Estado para impresión de ticket
 const printingOrder = ref(null);
 const printingItems = ref([]);
 
 const readOnly = computed(() => currentOrder.value?.status !== "draft");
 
-// Totales usando la nueva utilidad
-const totals = computed(() => calculateOrderTotals(items.value));
+// Totales usando la nueva utilidad calculada con applyTax
+const totals = computed(() => calculateOrderTotals(items.value, applyTax.value));
 
 // Funciones
 const statusLabel = (s) =>
@@ -460,6 +606,10 @@ const createOffer = () => {
   items.value = [];
   customer.value = { name: "", phone: "", email: "" };
   customerId.value = null;
+  // REGLA PRINCIPAL: Ningún método de pago ni IVA seleccionados por defecto
+  paymentMethod.value = null;
+  paymentMethodError.value = false;
+  applyTax.value = false;
   drawerVisible.value = true;
 };
 
@@ -479,8 +629,19 @@ const openOffer = async (order) => {
       email: order.customer_email || "",
     };
     customerId.value = order.customer_id;
-    drawerVisible.value = true;
+    // Cargar método de pago guardado o null
+    paymentMethod.value = order.payment_method || null;
+    paymentMethodError.value = false;
+    
+    // Cargar estado de IVA respetando lo guardado originalmente
+    if (order.apply_tax !== undefined && order.apply_tax !== null) {
+      applyTax.value = Boolean(order.apply_tax);
+    } else {
+      // Si la orden previa ya tenía tax_total > 0 se asume true, de lo contrario false
+      applyTax.value = Number(order.tax_total || order.tax || 0) > 0;
+    }
 
+    drawerVisible.value = true;
     items.value = await getOrderItems(order.id);
   } catch (err) {
     handleError(err);
@@ -494,6 +655,11 @@ const saveOffer = async () => {
   }
   if (items.value.length === 0) {
     showWarning("Agrega productos");
+    return false;
+  }
+  if (!paymentMethod.value) {
+    paymentMethodError.value = true;
+    showWarning("Seleccione un método de pago.");
     return false;
   }
 
@@ -514,6 +680,8 @@ const saveOffer = async () => {
       customer_name: customer.value.name,
       customer_phone: customer.value.phone,
       customer_email: customer.value.email,
+      payment_method: paymentMethod.value,
+      apply_tax: applyTax.value,
     });
 
     currentOrder.value = updated;

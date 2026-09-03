@@ -77,6 +77,15 @@
             />
           </template>
         </Column>
+        <Column field="payment_method" header="Pago" style="min-width: 130px">
+          <template #body="{ data }">
+            <span v-if="data.payment_method" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <i :class="getPaymentMethodIcon(data.payment_method)" class="text-emerald-600 text-[11px]"></i>
+              {{ getPaymentMethodLabel(data.payment_method) }}
+            </span>
+            <span v-else class="text-xs text-slate-400 italic">—</span>
+          </template>
+        </Column>
         <Column field="total" header="Total">
           <template #body="{ data }">
             <span class="font-bold text-emerald-600">{{
@@ -199,7 +208,7 @@
                 <span class="font-bold text-slate-700">Cliente</span>
               </div>
             </div>
-            <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               <div>
                 <label
                   class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1"
@@ -225,6 +234,16 @@
                 >
                 <p class="text-slate-800 font-medium">
                   {{ currentOrder?.customer_email || "—" }}
+                </p>
+              </div>
+              <div>
+                <label
+                  class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1"
+                  >Método de Pago</label
+                >
+                <p class="text-slate-800 font-bold flex items-center gap-1.5 mt-0.5">
+                  <i :class="getPaymentMethodIcon(currentOrder?.payment_method)" class="text-emerald-600"></i>
+                  {{ getPaymentMethodLabel(currentOrder?.payment_method) }}
                 </p>
               </div>
             </div>
@@ -441,6 +460,24 @@ const businessStore = useBusinessStore();
 
 // Directivas
 const vTooltip = Tooltip;
+
+// Opciones de métodos de pago
+const paymentMethodOptions = [
+  { label: "Efectivo", value: "efectivo", icon: "pi pi-money-bill" },
+  { label: "Tarjeta", value: "tarjeta", icon: "pi pi-credit-card" },
+  { label: "Transferencia bancaria", value: "transferencia", icon: "pi pi-send" },
+  { label: "Otro", value: "otro", icon: "pi pi-ellipsis-h" },
+];
+
+const getPaymentMethodLabel = (val) => {
+  const opt = paymentMethodOptions.find((o) => o.value === val);
+  return opt ? opt.label : (val || "—");
+};
+
+const getPaymentMethodIcon = (val) => {
+  const opt = paymentMethodOptions.find((o) => o.value === val);
+  return opt ? opt.icon : "pi pi-wallet";
+};
 
 // Estados de la lista
 const statusFilter = ref("paid");

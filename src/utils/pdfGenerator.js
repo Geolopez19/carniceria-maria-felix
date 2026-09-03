@@ -98,8 +98,17 @@ export async function getInvoicePDF({ order, items, business }) {
     pdf.text(`Tel: ${order.customer_phone}`, 20, yPos)
   }
 
+  if (order.payment_method) {
+    yPos += 6
+    pdf.setTextColor(...TEXT_GRAY)
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'bold')
+    const pm = String(order.payment_method).toUpperCase()
+    pdf.text(`Método de Pago: ${pm}`, 20, yPos)
+  }
+
   // --- TABLA PRODUCTOS ---
-  yPos = 95
+  yPos = 98
 
   // Header Tabla
   pdf.setFillColor(...PRIMARY_COLOR)
@@ -179,12 +188,14 @@ export async function getInvoicePDF({ order, items, business }) {
   pdf.text(`${business.currency} ${fmt(order.subtotal)}`, 185, yPos, { align: 'right' })
   yPos += 6
 
-  // Impuestos
-  pdf.setTextColor(...TEXT_GRAY)
-  pdf.text('Impuestos:', 140, yPos, { align: 'right' })
-  pdf.setTextColor(...TEXT_DARK)
-  pdf.text(`${business.currency} ${fmt(order.tax_total)}`, 185, yPos, { align: 'right' })
-  yPos += 8
+  // Impuestos (solo si aplica)
+  if (Number(order.tax_total || 0) > 0) {
+    pdf.setTextColor(...TEXT_GRAY)
+    pdf.text('IVA (15%):', 140, yPos, { align: 'right' })
+    pdf.setTextColor(...TEXT_DARK)
+    pdf.text(`${business.currency} ${fmt(order.tax_total)}`, 185, yPos, { align: 'right' })
+    yPos += 7
+  }
 
   // Total Final (Resaltado)
   pdf.setFillColor(...PRIMARY_COLOR)

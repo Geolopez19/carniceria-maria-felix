@@ -33,6 +33,10 @@
         <span class="font-bold">Cliente:</span>
         <span class="truncate max-w-[180px] font-semibold">{{ order.customer_name }}</span>
       </div>
+      <div class="flex justify-between" v-if="order?.payment_method">
+        <span class="font-bold">Pago:</span>
+        <span class="font-semibold uppercase">{{ order.payment_method }}</span>
+      </div>
     </div>
 
     <!-- Items -->

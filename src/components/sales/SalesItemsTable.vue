@@ -229,6 +229,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  applyTax: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(["update:items"]);
@@ -327,7 +331,7 @@ const addProduct = (p) => {
   } else {
     const qty = 1;
     const unit_price = Number(p.precio) || 0;
-    const tax_rate = IVA_PORCENTAJE; // Default to 15%
+    const tax_rate = props.applyTax ? IVA_PORCENTAJE : 0;
     const base = qty * unit_price;
     newItems.push({
       id: crypto.randomUUID(),
@@ -357,7 +361,7 @@ const addPackageItem = (pkg) => {
 
   const qty = Number(pkg.peso);
   const unit_price = Number(pkg.precio_por_unidad);
-  const tax_rate = IVA_PORCENTAJE;
+  const tax_rate = props.applyTax ? IVA_PORCENTAJE : 0;
   const base = qty * unit_price;
 
   newItems.push({
@@ -368,7 +372,7 @@ const addPackageItem = (pkg) => {
     qty,
     unit_price,
     tax_rate,
-    line_total: pkg.precio_total || (base + base * (tax_rate / 100)),
+    line_total: base + base * (tax_rate / 100),
     package_id: pkg.id
   });
 
@@ -389,7 +393,7 @@ const confirmarPeso = () => {
   } else {
     const qty = peso;
     const unit_price = Number(p.precio) || 0;
-    const tax_rate = IVA_PORCENTAJE;
+    const tax_rate = props.applyTax ? IVA_PORCENTAJE : 0;
     const base = qty * unit_price;
     newItems.push({
       id: crypto.randomUUID(),
