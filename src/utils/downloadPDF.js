@@ -9,7 +9,7 @@ export async function downloadInvoicePDF({ order, items, business }) {
     // Generar nombre de archivo
     const isFactura = String(order?.status || '').toLowerCase() === 'paid'
     const titulo = isFactura ? 'FACTURA' : 'OFERTA'
-    const fileName = `${titulo}_${order.number || '000'}_${order.customer_name?.replace(/\s+/g, '_') || 'cliente'}.pdf`
+    const fileName = `${titulo}_${order.invoice_number || order.number || '000'}_${order.customer_name?.replace(/\s+/g, '_') || 'cliente'}.pdf`
     
     pdf.save(fileName)
     return Promise.resolve()

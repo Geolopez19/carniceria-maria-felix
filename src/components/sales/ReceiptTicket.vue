@@ -90,8 +90,9 @@
     <!-- Footer -->
     <div class="text-center text-xs space-y-1">
       <p class="font-bold">*** GRACIAS POR SU COMPRA ***</p>
-      <p class="text-[11px]">No se aceptan devoluciones después de 30 días.</p>
-      <p class="mt-2 text-[10px] text-black font-medium">Sistema: {{ business?.name || 'Carnicería María Félix' }}</p>
+      <p class="text-[11px]">Revise sus productos antes de salir.</p>
+      <p class="text-[11px]">Visitenos en: https://www.carniceriamariafelix.com</p>
+      <p class="mt-2 text-[10px] text-black font-medium">Desarrollado por: GL Solutions</p>
     </div>
   </div>
 </template>

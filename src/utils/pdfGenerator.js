@@ -68,7 +68,7 @@ export async function getInvoicePDF({ order, items, business }) {
   pdf.setTextColor(...PRIMARY_COLOR)
   pdf.setFontSize(14)
   pdf.setFont('helvetica', 'bold')
-  pdf.text(`# ${order.number || '---'}`, pageWidth - 45, 33, { align: 'center' })
+  pdf.text(`# ${order.invoice_number || order.number || '---'}`, pageWidth - 45, 33, { align: 'center' })
 
   pdf.setTextColor(...TEXT_GRAY)
   pdf.setFontSize(9)

@@ -54,7 +54,7 @@
         :value="offers"
         :loading="isLoading"
         v-model:filters="filters"
-        :globalFilterFields="['customer_name']"
+        :globalFilterFields="['customer_name', 'invoice_number']"
         paginator
         :rows="15"
         :rowsPerPageOptions="[15, 30, 50]"
@@ -65,10 +65,10 @@
         :rowClass="() => 'cursor-pointer'"
         class="modern-table"
       >
-        <Column field="number" header="#" style="width: 100px">
+        <Column field="invoice_number" header="#" style="width: 100px">
           <template #body="{ data }">
             <span class="font-bold text-slate-800">{{
-              data.number ?? "—"
+              data.invoice_number ?? data.number ?? "—"
             }}</span>
           </template>
         </Column>
@@ -239,7 +239,7 @@
           <div>
             <h2 class="text-2xl font-black text-slate-800">
               {{ currentOrder?.status === "paid" ? "Factura" : "Oferta" }} #{{
-                currentOrder?.number ?? "Nueva"
+                currentOrder?.invoice_number ?? currentOrder?.number ?? "Nueva"
               }}
             </h2>
             <div class="flex items-center gap-2 mt-1">
@@ -602,7 +602,7 @@ const statusSeverity = (s) =>
   }[s] || "info");
 
 const createOffer = () => {
-  currentOrder.value = { status: "draft", number: null };
+  currentOrder.value = { status: "draft", invoice_number: null };
   items.value = [];
   customer.value = { name: "", phone: "", email: "" };
   customerId.value = null;
