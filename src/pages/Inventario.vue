@@ -228,19 +228,33 @@
         </div>
 
         <!-- Barra de acciones masivas -->
-        <div class="flex justify-between items-center mb-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200" v-if="modalPaquetes.paquetes.length > 0">
-          <span class="text-xs font-semibold text-slate-600">
-            {{ selectedPackages.length }} paquetes seleccionados
-          </span>
-          <Button 
-            v-if="selectedPackages.length > 0"
-            label="Imprimir Selección (102x51mm)" 
-            icon="pi pi-print" 
-            severity="primary" 
-            size="small" 
-            @click="imprimirSeleccionados" 
-            class="!text-white"
-            style="color: white !important;"
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-2 bg-slate-50 p-2.5 rounded-lg border border-slate-200" v-if="modalPaquetes.paquetes.length > 0">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-600">
+              {{ selectedPackages.length }} paquetes seleccionados
+            </span>
+            <Button 
+              v-if="selectedPackages.length > 0"
+              label="Imprimir Selección (102x51mm)" 
+              icon="pi pi-print" 
+              severity="primary" 
+              size="small" 
+              @click="imprimirSeleccionados" 
+              class="!text-white"
+              style="color: white !important;"
+            />
+          </div>
+
+          <!-- Botón de Sincronización Masiva al Precio Actual del Producto -->
+          <Button
+            v-if="modalPaquetes.producto"
+            :label="`Sincronizar disponibles a ${formatCurrency(modalPaquetes.producto.precio)} / ${modalPaquetes.producto.unidad_medida || 'lb'}`"
+            icon="pi pi-refresh"
+            severity="warn"
+            size="small"
+            outlined
+            @click="confirmarActualizarPreciosMasivo"
+            :loading="modalPaquetes.syncing"
           />
         </div>
 
@@ -259,6 +273,11 @@
               <span class="font-bold font-mono">{{ data.peso }} {{ modalPaquetes.producto?.unidad_medida }}</span>
             </template>
           </Column>
+          <Column field="precio_por_unidad" header="Precio Unit." sortable>
+            <template #body="{ data }">
+              <span class="text-slate-700 font-medium">{{ formatCurrency(data.precio_por_unidad) }}</span>
+            </template>
+          </Column>
           <Column field="precio_total" header="Total" sortable>
             <template #body="{ data }">
               <span class="font-bold text-green-600">{{ formatCurrency(data.precio_total) }}</span>
@@ -272,6 +291,15 @@
           <Column header="Acciones">
             <template #body="{ data }">
               <div class="flex gap-1">
+                <Button 
+                  v-if="data.estado === 'DISPONIBLE'" 
+                  icon="pi pi-dollar" 
+                  severity="info" 
+                  text 
+                  rounded 
+                  @click="abrirEditarPrecioPaquete(data)" 
+                  title="Modificar Precio" 
+                />
                 <Button icon="pi pi-print" severity="secondary" text rounded @click="imprimirEtiquetaPaquete(data)" title="Imprimir Etiqueta" />
                 <Button v-if="data.estado === 'DISPONIBLE'" icon="pi pi-trash" severity="danger" text rounded @click="confirmarMermaPaquete(data)" title="Reportar como Merma" />
               </div>
@@ -303,6 +331,62 @@
       </template>
     </Dialog>
 
+    <!-- Modal Editar Precio de Paquete Individual -->
+    <Dialog v-model:visible="modalEditarPrecio.visible" header="Modificar Precio de Paquete" modal class="w-full max-w-[90vw] md:max-w-md">
+      <div class="flex flex-col gap-4 py-2" v-if="modalEditarPrecio.paquete">
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col gap-1 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Paquete:</span>
+            <span class="font-mono font-bold text-indigo-700">{{ modalEditarPrecio.paquete.sub_codigo }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Peso registrado:</span>
+            <span class="font-mono font-bold">{{ modalEditarPrecio.paquete.peso }} {{ modalPaquetes.producto?.unidad_medida || 'lbs' }}</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="precio_unidad_paquete" class="font-semibold text-sm">
+            Precio por {{ modalPaquetes.producto?.unidad_medida || 'lb' }}
+          </label>
+          <InputNumber 
+            id="precio_unidad_paquete"
+            v-model="modalEditarPrecio.precioPorUnidad"
+            mode="currency"
+            currency="NIO"
+            locale="es-NI"
+            :min="0.01"
+            :minFractionDigits="2"
+            :maxFractionDigits="2"
+            fluid
+            autoFocus
+            @update:modelValue="calcularTotalPaqueteIndividual"
+          />
+        </div>
+
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
+          <span class="text-sm font-semibold text-emerald-800">Nuevo Precio Total:</span>
+          <span class="text-lg font-bold text-emerald-700">
+            {{ formatCurrency(modalEditarPrecio.precioTotal) }}
+          </span>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button label="Cancelar" text severity="secondary" @click="modalEditarPrecio.visible = false" />
+          <Button 
+            label="Actualizar Precio" 
+            icon="pi pi-check" 
+            severity="primary" 
+            @click="guardarPrecioPaqueteIndividual" 
+            :loading="modalEditarPrecio.saving" 
+            class="!text-white"
+            style="color: white !important;"
+          />
+        </div>
+      </template>
+    </Dialog>
+
     <!-- Componente de Confirmación Global -->
     <ConfirmDialog></ConfirmDialog>
   </div>
@@ -315,9 +399,9 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { getProductos, updateProducto, deleteProducto } from '../services/productos'
 import { getHistorialMovimientos } from '../services/inventarioMovimientos'
-import { getPaquetesByProducto, registrarMermaPaquete } from '../services/paquetes'
+import { getPaquetesByProducto, registrarMermaPaquete, updatePaquetePrecio, actualizarPreciosPaquetesProducto } from '../services/paquetes'
 import { formatCurrency } from '../utils/calculations'
-import { handleError, showSuccess } from '../utils/errorHandler'
+import { handleError, showSuccess, showWarning } from '../utils/errorHandler'
 import { useConfirm } from "primevue/useconfirm"
 import ProductFormDialog from '../components/inventory/ProductFormDialog.vue'
 
@@ -366,10 +450,19 @@ const modalPaquetes = ref({
   visible: false,
   producto: null,
   paquetes: [],
-  loading: false
+  loading: false,
+  syncing: false
 })
 
 const selectedPackages = ref([])
+
+const modalEditarPrecio = ref({
+  visible: false,
+  paquete: null,
+  precioPorUnidad: 0,
+  precioTotal: 0,
+  saving: false
+})
 
 const modalMerma = ref({
   visible: false,
@@ -560,6 +653,82 @@ const confirmarMermaPaquete = (paquete) => {
   modalMerma.value.motivo = ''
   modalMerma.value.saving = false
   modalMerma.value.visible = true
+}
+
+const abrirEditarPrecioPaquete = (paquete) => {
+  modalEditarPrecio.value.paquete = paquete
+  modalEditarPrecio.value.precioPorUnidad = Number(paquete.precio_por_unidad || modalPaquetes.value.producto?.precio || 0)
+  modalEditarPrecio.value.precioTotal = Number(paquete.precio_total || 0)
+  modalEditarPrecio.value.saving = false
+  modalEditarPrecio.value.visible = true
+}
+
+const calcularTotalPaqueteIndividual = () => {
+  const pkg = modalEditarPrecio.value.paquete
+  if (!pkg) return
+  const p = Number(pkg.peso || 0)
+  const u = Number(modalEditarPrecio.value.precioPorUnidad || 0)
+  modalEditarPrecio.value.precioTotal = Number((p * u).toFixed(2))
+}
+
+const guardarPrecioPaqueteIndividual = async () => {
+  const pkg = modalEditarPrecio.value.paquete
+  if (!pkg) return
+
+  const nuevoPrecio = Number(modalEditarPrecio.value.precioPorUnidad)
+  if (isNaN(nuevoPrecio) || nuevoPrecio <= 0) {
+    handleError(new Error('El precio unitario debe ser mayor a cero'))
+    return
+  }
+
+  const nuevoTotal = Number((Number(pkg.peso) * nuevoPrecio).toFixed(2))
+
+  try {
+    modalEditarPrecio.value.saving = true
+    await updatePaquetePrecio(pkg.id, {
+      precioPorUnidad: nuevoPrecio,
+      precioTotal: nuevoTotal
+    })
+    showSuccess(`Precio del paquete ${pkg.sub_codigo} actualizado a ${formatCurrency(nuevoTotal)}`)
+    modalEditarPrecio.value.visible = false
+    await cargarPaquetes()
+  } catch (err) {
+    handleError(err, 'Error al actualizar el precio del paquete')
+  } finally {
+    modalEditarPrecio.value.saving = false
+  }
+}
+
+const confirmarActualizarPreciosMasivo = () => {
+  const prod = modalPaquetes.value.producto
+  if (!prod) return
+
+  const paquetesDisponibles = modalPaquetes.value.paquetes.filter(p => p.estado === 'DISPONIBLE')
+  if (paquetesDisponibles.length === 0) {
+    showWarning('No hay paquetes disponibles para actualizar.')
+    return
+  }
+
+  confirm.require({
+    message: `¿Deseas actualizar los ${paquetesDisponibles.length} paquetes disponibles al precio actual del producto (${formatCurrency(prod.precio)} / ${prod.unidad_medida || 'lb'})? Los precios totales se recalcularán automáticamente según el peso de cada uno.`,
+    header: 'Sincronizar Precios de Paquetes',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-warning',
+    acceptLabel: 'Sí, sincronizar',
+    rejectLabel: 'Cancelar',
+    accept: async () => {
+      try {
+        modalPaquetes.value.syncing = true
+        const res = await actualizarPreciosPaquetesProducto(prod.id, prod.precio)
+        showSuccess(`Se actualizaron ${res.count} paquetes disponibles con éxito.`)
+        await cargarPaquetes()
+      } catch (err) {
+        handleError(err, 'Error al sincronizar precios de paquetes')
+      } finally {
+        modalPaquetes.value.syncing = false
+      }
+    }
+  })
 }
 
 const guardarMermaPaquete = async () => {

@@ -140,6 +140,22 @@
         </div>
       </div>
 
+      <!-- Opción para actualizar paquetes en inventario si el precio cambió -->
+      <div 
+        v-if="mode === 'editar' && form.tipo_venta === 'PAQUETE' && (initialData.precio !== form.precio)" 
+        class="flex items-center gap-3 bg-amber-50 p-3 rounded-xl border border-amber-200"
+      >
+        <input 
+          id="sync_paquetes" 
+          type="checkbox" 
+          v-model="syncPackagesPrice" 
+          class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+        />
+        <label for="sync_paquetes" class="text-xs text-amber-900 font-medium cursor-pointer">
+          Actualizar automáticamente el precio de todos los <strong>paquetes disponibles</strong> en inventario con este nuevo precio unitario
+        </label>
+      </div>
+
       <!-- Descripción -->
       <div class="flex flex-col gap-2">
         <label for="descripcion" class="font-semibold text-sm">Descripción u Observaciones</label>
@@ -160,6 +176,7 @@
 import { ref, watch } from 'vue'
 import QRCode from 'qrcode'
 import { addProducto, updateProducto } from '../../services/productos'
+import { actualizarPreciosPaquetesProducto } from '../../services/paquetes'
 import { handleError, showSuccess } from '../../utils/errorHandler'
 
 import Dialog from 'primevue/dialog'
@@ -189,6 +206,7 @@ const emit = defineEmits(['update:visible', 'saved'])
 const visible = defineModel('visible')
 const loading = ref(false)
 const qrDataUrl = ref('')
+const syncPackagesPrice = ref(true)
 
 const tipoVentaOptions = [
   { label: 'Por Unidad', value: 'UNIDAD' },
@@ -222,6 +240,7 @@ const form = ref({
 })
 
 watch(() => props.initialData, (val) => {
+  syncPackagesPrice.value = true
   if (val && props.mode === 'editar') {
     form.value = { 
       unidad_medida: 'lbs',
@@ -286,8 +305,24 @@ async function save() {
       result = await addProducto(form.value)
       showSuccess('Producto creado correctamente')
     } else {
+      const precioCambio = Number(props.initialData?.precio) !== Number(form.value.precio)
       result = await updateProducto(form.value.id, form.value)
-      showSuccess('Producto actualizado correctamente')
+
+      if (props.initialData?.tipo_venta === 'PAQUETE' && precioCambio && syncPackagesPrice.value) {
+        try {
+          const syncRes = await actualizarPreciosPaquetesProducto(form.value.id, form.value.precio)
+          if (syncRes.count > 0) {
+            showSuccess(`Producto actualizado y se sincronizaron ${syncRes.count} paquetes disponibles`)
+          } else {
+            showSuccess('Producto actualizado correctamente')
+          }
+        } catch (syncErr) {
+          console.error('Error sincronizando paquetes al guardar producto:', syncErr)
+          showSuccess('Producto actualizado, pero ocurrió un problema al sincronizar los paquetes')
+        }
+      } else {
+        showSuccess('Producto actualizado correctamente')
+      }
     }
     
     emit('saved', result)

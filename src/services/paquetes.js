@@ -123,6 +123,79 @@ export async function getDetalleVentaPaquete(paqueteId) {
   return data
 }
 
+export async function updatePaquetePrecio(paqueteId, { precioPorUnidad, precioTotal }) {
+  if (!paqueteId) throw new Error('ID de paquete es requerido')
+  const unitPrice = Number(precioPorUnidad)
+  const total = precioTotal !== undefined ? Number(precioTotal) : null
+
+  const updatePayload = {
+    precio_por_unidad: unitPrice
+  }
+  if (total !== null && !isNaN(total)) {
+    updatePayload.precio_total = total
+  }
+
+  const { data, error } = await supabase
+    .from('paquetes')
+    .update(updatePayload)
+    .eq('id', paqueteId)
+    .eq('estado', 'DISPONIBLE')
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error updating package price:', error.message)
+    throw error
+  }
+  return data
+}
+
+export async function actualizarPreciosPaquetesProducto(productoId, nuevoPrecioPorUnidad) {
+  if (!productoId) throw new Error('ID de producto es requerido')
+  const unitPrice = Number(nuevoPrecioPorUnidad)
+  if (isNaN(unitPrice) || unitPrice <= 0) {
+    throw new Error('El precio por unidad debe ser un número mayor a cero')
+  }
+
+  // 1. Obtener todos los paquetes disponibles de este producto
+  const { data: paquetesDisponibles, error: fetchError } = await supabase
+    .from('paquetes')
+    .select('id, peso')
+    .eq('producto_id', productoId)
+    .eq('estado', 'DISPONIBLE')
+
+  if (fetchError) {
+    console.error('Error fetching available packages:', fetchError.message)
+    throw fetchError
+  }
+
+  if (!paquetesDisponibles || paquetesDisponibles.length === 0) {
+    return { count: 0, updated: [] }
+  }
+
+  // 2. Actualizar cada paquete disponible con su nuevo precio_total = round(peso * unitPrice, 2)
+  const updatePromises = paquetesDisponibles.map(pkg => {
+    const nuevoTotal = Number((Number(pkg.peso) * unitPrice).toFixed(2))
+    return supabase
+      .from('paquetes')
+      .update({
+        precio_por_unidad: unitPrice,
+        precio_total: nuevoTotal
+      })
+      .eq('id', pkg.id)
+      .eq('estado', 'DISPONIBLE')
+  })
+
+  const results = await Promise.all(updatePromises)
+  const failed = results.filter(r => r.error)
+  if (failed.length > 0) {
+    console.error('Some packages failed to update:', failed)
+    throw new Error(`Ocurrió un error al actualizar algunos paquetes (${failed.length} fallos)`)
+  }
+
+  return { count: paquetesDisponibles.length }
+}
+
 export async function updatePaqueteCodigo(paqueteId, customCode) {
   if (!paqueteId || !customCode) return null
   const { data, error } = await supabase
@@ -138,4 +211,3 @@ export async function updatePaqueteCodigo(paqueteId, customCode) {
   }
   return data
 }
-
