@@ -372,6 +372,18 @@
                   formatCurrency(currentOrder?.total || 0)
                 }}</span>
               </div>
+
+              <!-- Desglose de Efectivo y Vuelto si aplica -->
+              <div v-if="currentOrder?.amount_received > 0" class="pt-2 border-t border-dashed border-slate-300 space-y-1">
+                <div class="flex justify-between text-xs text-slate-600">
+                  <span>Efectivo Recibido:</span>
+                  <span class="font-bold text-slate-800">{{ formatCurrency(currentOrder.amount_received) }}</span>
+                </div>
+                <div class="flex justify-between text-xs text-slate-600">
+                  <span>Vuelto Entregado:</span>
+                  <span class="font-bold text-emerald-700">{{ formatCurrency(currentOrder.change_given || 0) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

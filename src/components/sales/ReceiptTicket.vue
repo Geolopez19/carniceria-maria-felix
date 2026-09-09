@@ -85,6 +85,18 @@
         <span>TOTAL:</span>
         <span>{{ formatCurrency(order?.total || 0) }}</span>
       </div>
+
+      <!-- Desglose de Efectivo y Vuelto si aplica -->
+      <div v-if="order?.amount_received > 0 || order?.payment_method === 'efectivo'" class="border-t border-dotted border-gray-400 pt-1 mt-1 space-y-0.5">
+        <div class="flex justify-between" v-if="order?.amount_received > 0">
+          <span class="font-bold">Efectivo Recibido:</span>
+          <span class="font-extrabold">{{ formatCurrency(order.amount_received) }}</span>
+        </div>
+        <div class="flex justify-between" v-if="order?.amount_received > 0">
+          <span class="font-bold">Vuelto:</span>
+          <span class="font-extrabold">{{ formatCurrency(order.change_given || 0) }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Footer -->

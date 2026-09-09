@@ -459,6 +459,14 @@
       </div>
     </Drawer>
 
+    <!-- Modal de Cobro en Efectivo -->
+    <PaymentCashDialog
+      v-model:visible="cashDialogVisible"
+      :total="totals.total"
+      :isProcessing="isSaving"
+      @confirm="onCashPaymentConfirmed"
+    />
+
     <!-- Confirmation Dialog -->
     <ConfirmDialog></ConfirmDialog>
   </div>
@@ -487,6 +495,7 @@ import SalesCustomerForm from "../components/sales/SalesCustomerForm.vue";
 import SalesItemsTable from "../components/sales/SalesItemsTable.vue";
 import SalesTotals from "../components/sales/SalesTotals.vue";
 import ReceiptTicket from "../components/sales/ReceiptTicket.vue";
+import PaymentCashDialog from "../components/sales/PaymentCashDialog.vue";
 import { nextTick } from "vue";
 
 import Button from "primevue/button";
@@ -561,6 +570,9 @@ const isSaving = ref(false);
 const paymentMethod = ref(null);
 const paymentMethodError = ref(false);
 const applyTax = ref(false);
+const cashDialogVisible = ref(false);
+const amountReceived = ref(0);
+const changeGiven = ref(0);
 
 const toggleApplyTax = () => {
   if (readOnly.value) return;
@@ -610,6 +622,8 @@ const createOffer = () => {
   paymentMethod.value = null;
   paymentMethodError.value = false;
   applyTax.value = false;
+  amountReceived.value = 0;
+  changeGiven.value = 0;
   drawerVisible.value = true;
 };
 
@@ -632,6 +646,8 @@ const openOffer = async (order) => {
     // Cargar método de pago guardado o null
     paymentMethod.value = order.payment_method || null;
     paymentMethodError.value = false;
+    amountReceived.value = Number(order.amount_received || 0);
+    changeGiven.value = Number(order.change_given || 0);
     
     // Cargar estado de IVA respetando lo guardado originalmente
     if (order.apply_tax !== undefined && order.apply_tax !== null) {
@@ -674,7 +690,7 @@ const saveOffer = async () => {
 
     await upsertItems(items.value.map((i) => ({ ...i, order_id: orderId })));
 
-    const updated = await patchOrder(orderId, {
+    const patchPayload = {
       ...totals.value,
       customer_id: customerId.value,
       customer_name: customer.value.name,
@@ -682,9 +698,26 @@ const saveOffer = async () => {
       customer_email: customer.value.email,
       payment_method: paymentMethod.value,
       apply_tax: applyTax.value,
-    });
+      amount_received: amountReceived.value,
+      change_given: changeGiven.value,
+    };
 
-    currentOrder.value = updated;
+    let updated;
+    try {
+      updated = await patchOrder(orderId, patchPayload);
+    } catch (patchErr) {
+      // Si las columnas amount_received/change_given no existen aún en la BD, reintentar sin ellas
+      const fallbackPayload = { ...patchPayload };
+      delete fallbackPayload.amount_received;
+      delete fallbackPayload.change_given;
+      updated = await patchOrder(orderId, fallbackPayload);
+    }
+
+    currentOrder.value = {
+      ...updated,
+      amount_received: amountReceived.value,
+      change_given: changeGiven.value,
+    };
     showSuccess("Oferta guardada");
     queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
     return true;
@@ -696,7 +729,74 @@ const saveOffer = async () => {
   }
 };
 
+const executeFinalizeOrder = async () => {
+  try {
+    isSaving.value = true;
+    const saved = await saveOffer();
+    if (!saved) return;
+
+    await finalizeOrder(currentOrder.value.id);
+    showSuccess("Venta facturada exitosamente");
+    cashDialogVisible.value = false;
+    drawerVisible.value = false;
+    queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
+
+    // Ofrecer impresión automática del ticket con vuelto
+    handlePrintTicket({
+      ...currentOrder.value,
+      status: 'paid',
+      amount_received: amountReceived.value,
+      change_given: changeGiven.value,
+    });
+  } catch (err) {
+    if (err.message && err.message.includes('INSUFFICIENT_STOCK')) {
+      const matches = err.message.match(/for product ([a-f0-9-]+) \(need (\d+(\.\d+)?), have (\d+(\.\d+)?)\)/);
+      if (matches) {
+        const productId = matches[1];
+        const needed = parseFloat(matches[2]);
+        const have = parseFloat(matches[4]);
+        const productItem = items.value.find((i) => i.product_id === productId);
+        const productName = productItem ? productItem.product_name : 'Producto desconocido';
+        showWarning(`Stock insuficiente para "${productName}": Necesitas ${needed}, tienes ${have}`);
+      } else {
+        showWarning('No tienes suficiente stock para realizar esta venta.');
+      }
+    } else {
+      handleError(err);
+    }
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const onCashPaymentConfirmed = ({ amountReceived: received, changeGiven: change }) => {
+  amountReceived.value = received;
+  changeGiven.value = change;
+  executeFinalizeOrder();
+};
+
 const handleFacturar = async () => {
+  if (!customer.value.name) {
+    showWarning("Selecciona un cliente");
+    return;
+  }
+  if (items.value.length === 0) {
+    showWarning("Agrega productos");
+    return;
+  }
+  if (!paymentMethod.value) {
+    paymentMethodError.value = true;
+    showWarning("Seleccione un método de pago.");
+    return;
+  }
+
+  // Si el método es EFECTIVO, abrir el modal interactivo de billete y vuelto
+  if (paymentMethod.value === "efectivo") {
+    cashDialogVisible.value = true;
+    return;
+  }
+
+  // Si no es efectivo, confirmar directamente
   confirm.require({
     message: "¿Convertir esta oferta en factura? Se descontará del stock.",
     header: "Confirmar Facturación",
@@ -704,38 +804,7 @@ const handleFacturar = async () => {
     acceptLabel: "Sí, facturar",
     rejectLabel: "Cancelar",
     accept: async () => {
-      try {
-        isSaving.value = true;
-        const saved = await saveOffer();
-        if (!saved) return;
-
-        await finalizeOrder(currentOrder.value.id);
-        showSuccess("Venta facturada exitosamente");
-        drawerVisible.value = false;
-        queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
-      } catch (err) {
-        if (err.message && err.message.includes('INSUFFICIENT_STOCK')) {
-             // Extract product ID if possible, or just general message
-             // message: 'INSUFFICIENT_STOCK for product UUID (need X, have Y)'
-             const matches = err.message.match(/for product ([a-f0-9-]+) \(need (\d+(\.\d+)?), have (\d+(\.\d+)?)\)/)
-             if (matches) {
-                 const productId = matches[1]
-                 const needed = parseFloat(matches[2])
-                 const have = parseFloat(matches[4])
-                 
-                 const productItem = items.value.find(i => i.product_id === productId)
-                 const productName = productItem ? productItem.product_name : 'Producto desconocido'
-                 
-                 showWarning(`Stock insuficiente para "${productName}": Necesitas ${needed}, tienes ${have}`)
-             } else {
-                 showWarning('No tienes suficiente stock para realizar esta venta.')
-             }
-        } else {
-             handleError(err);
-        }
-      } finally {
-        isSaving.value = false;
-      }
+      await executeFinalizeOrder();
     },
   });
 };
