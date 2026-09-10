@@ -1,6 +1,7 @@
-import { supabase } from '../lib/supabaseClient'
+import { getActiveSupabase } from '../lib/supabaseClient'
 
 export async function searchSuppliers(q, limit = 100) {
+  const supabase = getActiveSupabase()
   let query = supabase
     .from('suppliers')
     .select('id,name,phone,email,address')
@@ -17,6 +18,7 @@ export async function searchSuppliers(q, limit = 100) {
 }
 
 export async function getSupplier(id) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('suppliers')
     .select('id,name,phone,email,address')
@@ -27,6 +29,7 @@ export async function getSupplier(id) {
 }
 
 export async function createSupplier({ name, phone, email, address }) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('suppliers')
     .insert({ name, phone, email, address })
@@ -37,6 +40,7 @@ export async function createSupplier({ name, phone, email, address }) {
 }
 
 export async function updateSupplier(id, { name, phone, email, address }) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('suppliers')
     .update({
@@ -53,6 +57,7 @@ export async function updateSupplier(id, { name, phone, email, address }) {
 }
 
 export async function deleteSupplier(id) {
+  const supabase = getActiveSupabase()
   const { error } = await supabase
     .from('suppliers')
     .delete()

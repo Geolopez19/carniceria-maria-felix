@@ -1,7 +1,8 @@
-import { supabase } from '../lib/supabaseClient'
+import { getActiveSupabase } from '../lib/supabaseClient'
 
 export async function registrarMovimiento({ producto_id, producto_nombre, tipo, cantidad, stock_anterior, stock_nuevo, motivo = null }) {
   try {
+    const supabase = getActiveSupabase()
     const { data, error } = await supabase
       .from('inventario_movimientos')
       .insert([{
@@ -34,6 +35,7 @@ export async function registrarMovimiento({ producto_id, producto_nombre, tipo, 
 
 export async function getHistorialMovimientos({ producto_id = null, limit = 100 } = {}) {
   try {
+    const supabase = getActiveSupabase()
     let query = supabase
       .from('inventario_movimientos')
       .select('*')

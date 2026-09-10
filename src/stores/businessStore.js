@@ -2,11 +2,28 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabaseClient'
 import { business as defaultSettings } from '../config/business'
+import { useCompanyStore } from './companyStore'
 
 export const useBusinessStore = defineStore('business', () => {
+  const companyStore = useCompanyStore()
   const settings = ref({ ...defaultSettings })
   const isLoading = ref(false)
   const lastFetched = ref(null)
+
+  const getDefaultSettings = () => {
+    if (companyStore.isMotoTech) {
+      return {
+        name: 'JyG MotoTech',
+        address: 'Managua, Nicaragua',
+        phone: '+505 0000-0000',
+        email: 'contacto@jygmototech.com',
+        website: 'https://www.jygmototech.com',
+        ruc: '',
+        currency: 'C$'
+      }
+    }
+    return { ...defaultSettings }
+  }
 
   // Mapping to/from database snake_case to app camelCase
   const mapFromDb = (data) => ({
@@ -37,7 +54,8 @@ export const useBusinessStore = defineStore('business', () => {
 
     isLoading.value = true
     try {
-      const { data, error } = await supabase
+      const client = companyStore.getClient()
+      const { data, error } = await client
         .from('business_config')
         .select('*')
         .limit(1)
@@ -46,12 +64,14 @@ export const useBusinessStore = defineStore('business', () => {
       if (error) throw error
 
       if (data) {
-        settings.value = { ...defaultSettings, ...mapFromDb(data) }
+        settings.value = { ...getDefaultSettings(), ...mapFromDb(data) }
+      } else {
+        settings.value = getDefaultSettings()
       }
       lastFetched.value = Date.now()
     } catch (error) {
       console.warn('Error fetching business settings, using defaults:', error.message)
-      // On error (e.g. table doesn't exist yet), we keep defaults
+      settings.value = getDefaultSettings()
     } finally {
       isLoading.value = false
     }
@@ -60,8 +80,9 @@ export const useBusinessStore = defineStore('business', () => {
   const saveSettings = async (newSettings) => {
     isLoading.value = true
     try {
+      const client = companyStore.getClient()
       // Check if a record exists
-      const { data: existing } = await supabase
+      const { data: existing } = await client
         .from('business_config')
         .select('id')
         .limit(1)
@@ -72,7 +93,7 @@ export const useBusinessStore = defineStore('business', () => {
 
       if (existing) {
         // Update
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('business_config')
           .update(payload)
           .eq('id', existing.id)
@@ -83,7 +104,7 @@ export const useBusinessStore = defineStore('business', () => {
         result = data
       } else {
         // Insert
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('business_config')
           .insert(payload)
           .select()
@@ -94,7 +115,7 @@ export const useBusinessStore = defineStore('business', () => {
       }
 
       if (result) {
-        settings.value = { ...defaultSettings, ...mapFromDb(result) }
+        settings.value = { ...getDefaultSettings(), ...mapFromDb(result) }
         lastFetched.value = Date.now()
         return true
       }

@@ -285,7 +285,7 @@
               <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <i class="pi pi-wallet text-indigo-500"></i>
-                  Método de Pago <span class="text-rose-500 text-sm">*</span>
+                  Método de Pago <span class="text-xs font-normal text-slate-400 lowercase">(obligatorio para facturar)</span>
                 </label>
                 <Select
                   v-model="paymentMethod"
@@ -481,6 +481,7 @@ import {
   getOrderItems,
   createDraftOrder,
   upsertItems,
+  deleteOrderItemsNotInList,
   patchOrder,
   finalizeOrder,
   cancelOrder,
@@ -664,18 +665,13 @@ const openOffer = async (order) => {
   }
 };
 
-const saveOffer = async () => {
+const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
   if (!customer.value.name) {
     showWarning("Selecciona un cliente");
     return false;
   }
   if (items.value.length === 0) {
     showWarning("Agrega productos");
-    return false;
-  }
-  if (!paymentMethod.value) {
-    paymentMethodError.value = true;
-    showWarning("Seleccione un método de pago.");
     return false;
   }
 
@@ -688,6 +684,10 @@ const saveOffer = async () => {
       currentOrder.value.id = orderId;
     }
 
+    // Sincronizar ítems: eliminar de la BD los ítems que fueron removidos de la oferta
+    const activeItemIds = items.value.map((i) => i.id).filter(Boolean);
+    await deleteOrderItemsNotInList(orderId, activeItemIds);
+
     await upsertItems(items.value.map((i) => ({ ...i, order_id: orderId })));
 
     const patchPayload = {
@@ -696,7 +696,7 @@ const saveOffer = async () => {
       customer_name: customer.value.name,
       customer_phone: customer.value.phone,
       customer_email: customer.value.email,
-      payment_method: paymentMethod.value,
+      payment_method: paymentMethod.value || null,
       apply_tax: applyTax.value,
       amount_received: amountReceived.value,
       change_given: changeGiven.value,
@@ -706,11 +706,17 @@ const saveOffer = async () => {
     try {
       updated = await patchOrder(orderId, patchPayload);
     } catch (patchErr) {
-      // Si las columnas amount_received/change_given no existen aún en la BD, reintentar sin ellas
+      // Reintentar descartando columnas que podrían no existir en schemas anteriores
       const fallbackPayload = { ...patchPayload };
       delete fallbackPayload.amount_received;
       delete fallbackPayload.change_given;
-      updated = await patchOrder(orderId, fallbackPayload);
+      try {
+        updated = await patchOrder(orderId, fallbackPayload);
+      } catch (secondErr) {
+        delete fallbackPayload.apply_tax;
+        delete fallbackPayload.payment_method;
+        updated = await patchOrder(orderId, fallbackPayload);
+      }
     }
 
     currentOrder.value = {
@@ -718,8 +724,11 @@ const saveOffer = async () => {
       amount_received: amountReceived.value,
       change_given: changeGiven.value,
     };
-    showSuccess("Oferta guardada");
-    queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
+    showSuccess("Oferta guardada correctamente");
+    await queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
+    if (options.closeDrawerOnSuccess) {
+      drawerVisible.value = false;
+    }
     return true;
   } catch (err) {
     handleError(err);
@@ -732,7 +741,7 @@ const saveOffer = async () => {
 const executeFinalizeOrder = async () => {
   try {
     isSaving.value = true;
-    const saved = await saveOffer();
+    const saved = await saveOffer({ closeDrawerOnSuccess: false });
     if (!saved) return;
 
     await finalizeOrder(currentOrder.value.id);

@@ -1,25 +1,28 @@
 <template>
-    <aside 
-    class="bg-gradient-to-b from-indigo-600 to-indigo-800 text-white flex flex-col h-screen fixed left-0 top-0 shadow-2xl z-50 transition-all duration-300 ease-in-out"
+  <aside 
+    class="text-white flex flex-col h-screen fixed left-0 top-0 shadow-2xl z-50 transition-all duration-300 ease-in-out"
     :class="[
       isCollapsed ? 'lg:w-20' : 'lg:w-64',
-      isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
+      isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
+      companyStore.isMotoTech ? 'bg-gradient-to-b from-slate-900 via-slate-800 to-amber-950' : 'bg-gradient-to-b from-indigo-600 to-indigo-800'
     ]"
   >
     <!-- Logo/Header -->
-    <div class="p-6 flex items-center gap-3 border-b border-indigo-500/30 overflow-hidden min-h-[88px] relative">
+    <div class="p-6 flex items-center gap-3 border-b overflow-hidden min-h-[88px] relative"
+      :class="companyStore.isMotoTech ? 'border-amber-500/20' : 'border-indigo-500/30'"
+    >
       <div 
         class="bg-white p-2 rounded-xl shadow-lg transition-all duration-300 flex-shrink-0"
         :class="isCollapsed ? 'mx-auto' : ''"
       >
-        <Package class="w-6 h-6 text-indigo-600" />
+        <Package class="w-6 h-6" :class="companyStore.isMotoTech ? 'text-amber-600' : 'text-indigo-600'" />
       </div>
       <div 
         v-if="!isCollapsed"
         class="flex flex-col whitespace-nowrap transition-opacity duration-300" 
       >
-        <span class="text-xl font-bold tracking-tight">María Félix</span>
-        <span class="text-xs text-indigo-200">Carnicería</span>
+        <span class="text-xl font-bold tracking-tight">{{ companyStore.currentCompany.shortName }}</span>
+        <span class="text-xs" :class="companyStore.isMotoTech ? 'text-amber-300' : 'text-indigo-200'">{{ companyStore.currentCompany.type }}</span>
       </div>
     </div>
 
@@ -101,13 +104,18 @@ import {
   Truck, 
   BarChart3, 
   Users, 
-  LogOut,
+  LogOut, 
   FileText,
   ChevronLeft,
   ChevronRight,
-  Settings
+  Settings,
+  BookmarkCheck
 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabaseClient'
+import { useCompanyStore } from '../stores/companyStore'
+import { computed } from 'vue'
+
+const companyStore = useCompanyStore()
 
 const props = defineProps({
   isCollapsed: {
@@ -126,34 +134,45 @@ const toggleSidebar = () => {
   emit('toggle')
 }
 
-const navigation = [
-  {
-    title: 'Principal',
-    items: [
-      { name: 'Inventario', path: '/inventario', icon: Package },
-      { name: 'Compras', path: '/compras', icon: Truck },
-    ]
-  },
-  {
-    title: 'Ventas',
-    items: [
-      { name: 'Ofertas', path: '/ventas/ofertas', icon: ShoppingCart },
-      { name: 'Facturas', path: '/ventas/facturas', icon: FileText },
-      { name: 'Clientes', path: '/ventas/clientes', icon: Users },
-    ]
-  },
-  {
-    title: 'Administración',
-    items: [
-      { name: 'Reportes', path: '/reportes', icon: BarChart3 },
-      { name: 'Usuarios', path: '/usuarios', icon: Users },
-      { name: 'Configuración', path: '/configuracion', icon: Settings },
-    ]
+const navigation = computed(() => {
+  const ventasItems = [
+    { name: 'Ofertas / Cotizar', path: '/ventas/ofertas', icon: ShoppingCart },
+    { name: 'Facturas', path: '/ventas/facturas', icon: FileText },
+  ]
+
+  // En MotoTech agregar Apartados de Cascos
+  if (companyStore.isMotoTech) {
+    ventasItems.push({ name: 'Apartados de Cascos', path: '/apartados', icon: BookmarkCheck })
   }
-]
+
+  ventasItems.push({ name: 'Clientes', path: '/ventas/clientes', icon: Users })
+
+  return [
+    {
+      title: 'Principal',
+      items: [
+        { name: 'Inventario', path: '/inventario', icon: Package },
+        { name: 'Compras', path: '/compras', icon: Truck },
+      ]
+    },
+    {
+      title: 'Ventas',
+      items: ventasItems
+    },
+    {
+      title: 'Administración',
+      items: [
+        { name: 'Reportes', path: '/reportes', icon: BarChart3 },
+        { name: 'Usuarios', path: '/usuarios', icon: Users },
+        { name: 'Configuración', path: '/configuracion', icon: Settings },
+      ]
+    }
+  ]
+})
 
 const handleLogout = async () => {
   await supabase.auth.signOut()
 }
 </script>
+
 

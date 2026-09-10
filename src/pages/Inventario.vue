@@ -65,8 +65,27 @@
                 </template>
               </Column>
               <Column field="nombre" header="Nombre" sortable></Column>
+              
+              <!-- Columnas exclusivas de MotoTech -->
+              <Column v-if="companyStore.isMotoTech" field="marca" header="Marca" sortable>
+                <template #body="{ data }">
+                  <span class="font-bold text-slate-700">{{ data.marca || '—' }}</span>
+                </template>
+              </Column>
+              <Column v-if="companyStore.isMotoTech" field="talla" header="Talla" sortable class="text-center">
+                <template #body="{ data }">
+                  <Tag v-if="data.talla" :value="data.talla" severity="info" class="font-bold text-xs" />
+                  <span v-else class="text-slate-400">—</span>
+                </template>
+              </Column>
+              <Column v-if="companyStore.isMotoTech" field="color" header="Color" sortable class="hidden md:table-cell">
+                <template #body="{ data }">
+                  <span class="text-xs text-slate-600">{{ data.color || '—' }}</span>
+                </template>
+              </Column>
+
               <Column field="categoria" header="Categoría" sortable class="hidden md:table-cell"></Column>
-              <Column field="tipo_venta" header="Venta" sortable class="hidden lg:table-cell">
+              <Column v-if="!companyStore.isMotoTech" field="tipo_venta" header="Venta" sortable class="hidden lg:table-cell">
                 <template #body="{ data }">
                   <Badge :value="getTipoVentaLabel(data.tipo_venta)" :severity="getTipoVentaSeverity(data.tipo_venta)" class="text-[10px] uppercase font-bold" />
                 </template>
@@ -92,8 +111,8 @@
                   <div class="flex gap-1 md:gap-2">
                     <Button icon="pi pi-qrcode" severity="secondary" text rounded @click="abrirModalEtiqueta(data)" title="Ver / Imprimir Código de Barras / QR" />
                     <Button icon="pi pi-plus" severity="success" text rounded @click="abrirModalEntrada(data)" title="Agregar Stock" />
-                    <Button v-if="data.tipo_venta === 'PAQUETE'" icon="pi pi-box" severity="warn" text rounded @click="abrirModalVerPaquetes(data)" title="Ver Paquetes" />
-                    <Button v-if="data.tipo_venta === 'PAQUETE'" icon="pi pi-tags" severity="help" text rounded @click="navegarAEmpacar(data)" title="Empacar Producto" />
+                    <Button v-if="!companyStore.isMotoTech && data.tipo_venta === 'PAQUETE'" icon="pi pi-box" severity="warn" text rounded @click="abrirModalVerPaquetes(data)" title="Ver Paquetes" />
+                    <Button v-if="!companyStore.isMotoTech && data.tipo_venta === 'PAQUETE'" icon="pi pi-tags" severity="help" text rounded @click="navegarAEmpacar(data)" title="Empacar Producto" />
                     <Button icon="pi pi-pencil" severity="info" text rounded @click="abrirModal('editar', data)" />
                     <Button icon="pi pi-trash" severity="danger" text rounded @click="confirmarEliminar(data)" />
                   </div>
@@ -404,6 +423,9 @@ import { formatCurrency } from '../utils/calculations'
 import { handleError, showSuccess, showWarning } from '../utils/errorHandler'
 import { useConfirm } from "primevue/useconfirm"
 import ProductFormDialog from '../components/inventory/ProductFormDialog.vue'
+import { useCompanyStore } from '../stores/companyStore'
+
+const companyStore = useCompanyStore()
 
 import Button from 'primevue/button'
 import DataTable from 'primevue/datatable'
@@ -574,8 +596,8 @@ const imprimirEtiqueta = () => {
       <body>
         <div class="label-container">
           <h2 class="title">${prod.nombre}</h2>
-          <div class="subtitle">CARNICERÍA MARÍA FÉLIX</div>
-          <div class="precio">PRECIO: C$${Number(prod.precio || 0).toFixed(2)} / ${prod.unidad_medida || 'lb'}</div>
+          <div class="subtitle">${companyStore.currentCompany.name.toUpperCase()}</div>
+          <div class="precio">PRECIO: C$${Number(prod.precio || 0).toFixed(2)} / ${prod.unidad_medida || (companyStore.isMotoTech ? 'und' : 'lb')}</div>
           <div class="barcode-wrapper">
             <svg id="barcode-svg"></svg>
           </div>

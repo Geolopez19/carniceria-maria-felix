@@ -33,8 +33,37 @@
 
       <!-- Nombre -->
       <div class="flex flex-col gap-2">
-        <label for="nombre" class="font-semibold text-sm">Nombre del Producto</label>
-        <InputText id="nombre" v-model="form.nombre" placeholder="Ej. Lomo de Cerdo, Carne Molida..." />
+        <label for="nombre" class="font-semibold text-sm">
+          {{ companyStore.isMotoTech ? 'Nombre del Producto (Ej. Casco Shaft 582, Guantes ProBiker)' : 'Nombre del Producto' }}
+        </label>
+        <InputText id="nombre" v-model="form.nombre" :placeholder="companyStore.isMotoTech ? 'Ej. Casco Integral LS2 Storm FF800' : 'Ej. Lomo de Cerdo, Carne Molida...'" />
+      </div>
+
+      <!-- CAMPOS ESPECÍFICOS PARA MOTOTECH (Marca, Modelo, Talla, Color) -->
+      <div v-if="companyStore.isMotoTech" class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-amber-50/50 p-3 rounded-xl border border-amber-200/70">
+        <div class="flex flex-col gap-1.5">
+          <label for="marca" class="font-semibold text-xs text-slate-700">Marca</label>
+          <InputText id="marca" v-model="form.marca" placeholder="Ej. LS2, Shaft, Bell" class="p-inputtext-sm" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="modelo" class="font-semibold text-xs text-slate-700">Modelo</label>
+          <InputText id="modelo" v-model="form.modelo" placeholder="Ej. Rookie, Storm" class="p-inputtext-sm" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="talla" class="font-semibold text-xs text-slate-700">Talla</label>
+          <Select 
+            id="talla" 
+            v-model="form.talla" 
+            :options="['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Universal', 'N/A']" 
+            editable 
+            placeholder="Talla" 
+            class="w-full text-xs"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label for="color" class="font-semibold text-xs text-slate-700">Color</label>
+          <InputText id="color" v-model="form.color" placeholder="Ej. Negro Mate" class="p-inputtext-sm" />
+        </div>
       </div>
 
       <!-- Categoría, Tipo Venta y Unidad de Medida -->
@@ -44,13 +73,13 @@
           <Select 
             id="categoria" 
             v-model="form.categoria" 
-            :options="categories" 
+            :options="categoriesList" 
             editable 
-            placeholder="Ej. Res..." 
+            :placeholder="companyStore.isMotoTech ? 'Ej. Cascos, Guantes...' : 'Ej. Res, Cerdo...'" 
             class="w-full"
           />
         </div>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2" v-if="!companyStore.isMotoTech">
           <label for="tipo_venta" class="font-semibold text-sm">Tipo de Venta</label>
           <Select 
             id="tipo_venta" 
@@ -67,7 +96,7 @@
           <Select 
             id="unidad_medida" 
             v-model="form.unidad_medida" 
-            :options="unidadOptions" 
+            :options="unidadOptionsList" 
             optionLabel="label" 
             optionValue="value" 
             placeholder="Seleccionar unidad" 
@@ -185,6 +214,10 @@ import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
+import { useCompanyStore } from '../../stores/companyStore'
+import { computed } from 'vue'
+
+const companyStore = useCompanyStore()
 
 const props = defineProps({
   mode: {
@@ -214,21 +247,54 @@ const tipoVentaOptions = [
   { label: 'Por Paquete (Peso Variable)', value: 'PAQUETE' },
 ]
 
-const unidadOptions = [
+const carniceriaUnidades = [
   { label: 'Libras (lbs)', value: 'lbs' },
   { label: 'Cajas (cajas)', value: 'cajas' },
   { label: 'Kilos (kg)', value: 'kg' },
   { label: 'Unidades (pzas)', value: 'unidades' },
 ]
 
+const motoUnidades = [
+  { label: 'Unidades (und)', value: 'und' },
+  { label: 'Pares (par)', value: 'par' },
+  { label: 'Kits / Juegos (kit)', value: 'kit' },
+]
+
+const unidadOptionsList = computed(() => {
+  return companyStore.isMotoTech ? motoUnidades : carniceriaUnidades
+})
+
+const defaultMotoCategories = [
+  'Cascos Integrales',
+  'Cascos Abiertos',
+  'Cascos Abatibles',
+  'Guantes',
+  'Chaquetas / Protectores',
+  'Impermeables',
+  'Accesorios & Intercoms',
+  'Mantenimiento & Limpieza',
+  'Repuestos'
+]
+
+const categoriesList = computed(() => {
+  if (companyStore.isMotoTech) {
+    return defaultMotoCategories
+  }
+  return props.categories.length > 0 ? props.categories : ['Res', 'Cerdo', 'Pollo', 'Embutidos', 'Mariscos', 'Otros']
+})
+
 const getUnidadLabel = (val) => {
-  const found = unidadOptions.find(u => u.value === val)
+  const found = unidadOptionsList.value.find(u => u.value === val)
   return found ? found.label.split(' ')[0] : 'Unidad'
 }
 
 const form = ref({
   codigo: '',
   nombre: '',
+  marca: '',
+  modelo: '',
+  talla: '',
+  color: '',
   categoria: '',
   tipo_venta: 'UNIDAD',
   unidad_medida: 'lbs',
@@ -276,9 +342,13 @@ function resetForm() {
   form.value = { 
     codigo: '',
     nombre: '', 
+    marca: '',
+    modelo: '',
+    talla: '',
+    color: '',
     categoria: '', 
     tipo_venta: 'UNIDAD',
-    unidad_medida: 'lbs',
+    unidad_medida: companyStore.isMotoTech ? 'und' : 'lbs',
     stock: 0, 
     stock_granel: 0,
     stock_empacado: 0,
@@ -295,7 +365,10 @@ function generateBarcode() {
 }
 
 async function save() {
-  if (!form.value.nombre) return // Simple validation
+  if (!form.value.nombre || !form.value.nombre.trim()) {
+    handleError(new Error('El nombre del producto es obligatorio'))
+    return
+  }
 
   try {
     loading.value = true

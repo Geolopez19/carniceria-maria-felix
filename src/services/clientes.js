@@ -1,10 +1,11 @@
-import { supabase } from '../lib/supabaseClient'
+import { getActiveSupabase } from '../lib/supabaseClient'
 
 export function normalizeCedula(n) {
   return (n || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
 export async function searchCustomers(q, limit = 8) {
+  const supabase = getActiveSupabase()
   let query = supabase.from('customers').select('id,name,phone,email,address,national_id').limit(limit)
   if (q && q.trim()) {
     const s = q.trim()
@@ -16,6 +17,7 @@ export async function searchCustomers(q, limit = 8) {
 }
 
 export async function listCustomers() {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('customers')
     .select('*')
@@ -25,6 +27,7 @@ export async function listCustomers() {
 }
 
 export async function getCustomer(id) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('customers')
     .select('id,name,phone,email,address,national_id')
@@ -35,6 +38,7 @@ export async function getCustomer(id) {
 }
 
 export async function createCustomer({ name, national_id, phone, email, address }) {
+  const supabase = getActiveSupabase()
   if (national_id) {
     const nid = normalizeCedula(national_id)
     const { data: dup, error: e1 } = await supabase
@@ -68,6 +72,7 @@ export async function createCustomer({ name, national_id, phone, email, address 
 
 export async function updateCustomer(id, { name, national_id, phone, email, address }) {
   if (!id) throw new Error('ID no válido para actualización')
+  const supabase = getActiveSupabase()
 
   if (national_id) {
     const nid = normalizeCedula(national_id)
@@ -110,6 +115,7 @@ export async function updateCustomer(id, { name, national_id, phone, email, addr
 
 export async function deleteCustomer(id) {
   if (!id) throw new Error('ID no válido para eliminación')
+  const supabase = getActiveSupabase()
 
   const { error } = await supabase
     .from('customers')

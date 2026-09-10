@@ -24,4 +24,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
+/**
+ * Retorna el cliente de Supabase apuntando al schema correspondiente:
+ * - 'public' si es Carnicería
+ * - 'mototech' si es JyG MotoTech
+ */
+export const getActiveSupabase = () => {
+  const activeCompany = localStorage.getItem('active_company_id') || 'carniceria'
+  if (activeCompany === 'mototech') {
+    return supabase.schema('mototech')
+  }
+  return supabase
+}
+
+
 

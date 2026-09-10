@@ -103,7 +103,7 @@
     <div class="text-center text-xs space-y-1">
       <p class="font-bold">*** GRACIAS POR SU COMPRA ***</p>
       <p class="text-[11px]">Revise sus productos antes de salir.</p>
-      <p class="text-[11px]">Visitenos en: https://www.carniceriamariafelix.com</p>
+      <p v-if="business?.website" class="text-[11px]">Visítenos en: {{ business.website }}</p>
       <p class="mt-2 text-[10px] text-black font-medium">Desarrollado por: GL Solutions</p>
     </div>
   </div>

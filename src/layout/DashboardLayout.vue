@@ -10,17 +10,37 @@
         <div class="flex items-center gap-3">
           <div class="text-base lg:text-sm text-indigo-900 lg:text-slate-600 font-bold lg:font-semibold flex items-center gap-2">
             <!-- Mobile Título Corto / Logo Reducido -->
-            <Package class="w-6 h-6 lg:hidden text-indigo-600" />
-            <span class="lg:hidden capitalize">{{ ($route.name || 'María Félix').replace('-', ' ') }}</span>
-            <span class="hidden lg:block">Sistema de Gestión Carnicería María Félix</span>
+            <Package class="w-6 h-6 lg:hidden" :class="companyStore.isMotoTech ? 'text-amber-600' : 'text-indigo-600'" />
+            <span class="lg:hidden capitalize">{{ ($route.name || companyStore.currentCompany.shortName).replace('-', ' ') }}</span>
+            <span class="hidden lg:block">{{ companyStore.currentCompany.name }}</span>
+          </div>
+
+          <!-- Selector de Empresa (Switch Multi-empresa) -->
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              v-for="c in companyStore.COMPANIES"
+              :key="c.id"
+              @click="companyStore.setCompany(c.id)"
+              class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
+              :class="companyStore.activeCompanyId === c.id 
+                ? (c.id === 'mototech' ? 'bg-amber-600 text-white shadow-sm' : 'bg-indigo-600 text-white shadow-sm')
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'"
+              :title="`Cambiar a ${c.name}`"
+            >
+              <span>{{ c.badge }}</span>
+            </button>
           </div>
         </div>
         <div class="flex items-center gap-4">
           <div class="text-right hidden sm:block">
             <div class="text-sm font-bold text-slate-800">{{ displayName }}</div>
-            <div class="text-xs text-indigo-600 capitalize font-medium">{{ userRole }}</div>
+            <div class="text-xs capitalize font-medium" :class="companyStore.isMotoTech ? 'text-amber-600' : 'text-indigo-600'">{{ userRole }}</div>
           </div>
-          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg">
+          <div 
+            class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-lg"
+            :class="companyStore.isMotoTech ? 'bg-gradient-to-br from-slate-800 to-amber-600' : 'bg-gradient-to-br from-indigo-500 to-indigo-600'"
+          >
             {{ userInitial }}
           </div>
         </div>
@@ -44,7 +64,9 @@ import MobileNav from '../components/MobileNav.vue'
 import { supabase } from '../lib/supabaseClient'
 import { getUserByAuthId } from '../services/usuarios'
 import { Package } from 'lucide-vue-next'
+import { useCompanyStore } from '../stores/companyStore'
 
+const companyStore = useCompanyStore()
 const user = ref(null)
 const userProfile = ref(null)
 const isCollapsed = ref(false)

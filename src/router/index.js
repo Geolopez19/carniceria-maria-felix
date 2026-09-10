@@ -48,6 +48,11 @@ const routes = [
         ]
       },
       {
+        path: 'apartados',
+        name: 'Apartados',
+        component: () => import('../pages/Apartados.vue')
+      },
+      {
         path: 'compras',
         name: 'Compras',
         component: () => import('../pages/Compras.vue')

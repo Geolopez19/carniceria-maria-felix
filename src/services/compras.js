@@ -1,8 +1,9 @@
-import { supabase } from '../lib/supabaseClient'
+import { getActiveSupabase } from '../lib/supabaseClient'
 import { registrarMovimiento } from './inventarioMovimientos'
 import { crearLote, crearPaquete } from './paquetes'
 
 export async function listPurchases(options = {}) {
+  const supabase = getActiveSupabase()
   const { limit = 50, offset = 0 } = typeof options === 'number'
     ? { limit: options }
     : options
@@ -18,6 +19,7 @@ export async function listPurchases(options = {}) {
 }
 
 export async function getPurchaseItems(purchaseId) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('purchase_order_items')
     .select('*')
@@ -44,6 +46,7 @@ export async function getPurchaseItems(purchaseId) {
 }
 
 export async function createDraftPurchase() {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('purchase_orders')
     .insert({ status: 'draft' })
@@ -75,6 +78,7 @@ export async function upsertPurchaseItems(items) {
   }))
 
   try {
+    const supabase = getActiveSupabase()
     const { data, error } = await supabase
       .from('purchase_order_items')
       .upsert(fullPayload)
@@ -96,6 +100,7 @@ export async function upsertPurchaseItems(items) {
     line_total: i.line_total
   }))
 
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('purchase_order_items')
     .upsert(cleanPayload)
@@ -106,6 +111,7 @@ export async function upsertPurchaseItems(items) {
 }
 
 export async function patchPurchase(purchaseId, patch) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('purchase_orders')
     .update(patch)
@@ -118,6 +124,7 @@ export async function patchPurchase(purchaseId, patch) {
 
 export async function finalizePurchase(purchaseId, memoryItems = null) {
   try {
+    const supabase = getActiveSupabase()
     // Si pasamos los items en memoria con su desglose de paquetes, los usamos prioritariamente
     let items = memoryItems
     if (!items || items.length === 0) {
@@ -158,11 +165,10 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
               precioPorUnidad: Number(item.unit_cost || 0),
               fechaEmpaque: p.fecha_empaque || new Date().toISOString(),
               fechaVencimiento: p.fecha_vencimiento || null,
-              descontarGranel: false // <--- Directo a stock empacado sin descontar granel
+              descontarGranel: false
             })
           }
         } else {
-          // Si no ingresó paquete por paquete, crear paquete único por el peso total
           await crearPaquete({
             productoId: item.product_id,
             loteId: lote?.id || null,
@@ -175,7 +181,7 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
         }
 
       } else {
-        // Ingreso a Granel o por Pieza -> Cargar a stock_granel
+        // Ingreso a Granel o por Pieza -> Cargar a stock
         const { data: producto } = await supabase
           .from('productos')
           .select('id, nombre, stock, stock_granel')
@@ -183,12 +189,12 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
           .single()
 
         if (producto) {
-          const stockAnterior = producto.stock_granel || 0
+          const stockAnterior = producto.stock_granel || producto.stock || 0
           const stockNuevo = stockAnterior + Number(item.qty)
 
           await supabase
             .from('productos')
-            .update({ stock_granel: stockNuevo })
+            .update({ stock_granel: stockNuevo, stock: stockNuevo })
             .eq('id', item.product_id)
 
           const { data: productoActualizado } = await supabase
@@ -203,7 +209,7 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
             tipo: 'entrada',
             cantidad: Number(item.qty),
             stock_anterior: producto.stock || 0,
-            stock_nuevo: productoActualizado?.stock || 0,
+            stock_nuevo: productoActualizado?.stock || stockNuevo,
             motivo: `Compra - Orden #${purchaseId}`
           })
         }
@@ -227,6 +233,7 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
 }
 
 export async function deletePurchase(purchaseId) {
+  const supabase = getActiveSupabase()
   const { data, error } = await supabase
     .from('purchase_orders')
     .delete()
@@ -240,6 +247,7 @@ export async function deletePurchase(purchaseId) {
 }
 
 export async function revertPurchaseToDraft(purchaseId) {
+  const supabase = getActiveSupabase()
   const items = await getPurchaseItems(purchaseId)
 
   for (const item of items) {
@@ -255,14 +263,14 @@ export async function revertPurchaseToDraft(purchaseId) {
         continue
       }
 
-      const stockAnterior = Number(producto.stock_granel || 0)
+      const stockAnterior = Number(producto.stock_granel || producto.stock || 0)
       const qty = Number(item.qty)
       const stockNuevo = Math.max(0, stockAnterior - qty)
 
-      // Actualizar stock_granel
+      // Actualizar stock
       const { error: updateError } = await supabase
         .from('productos')
-        .update({ stock_granel: stockNuevo })
+        .update({ stock_granel: stockNuevo, stock: stockNuevo })
         .eq('id', item.product_id)
 
       if (updateError) {
@@ -305,6 +313,7 @@ export async function revertPurchaseToDraft(purchaseId) {
   if (error) throw error
   return data
 }
+
 
 
 

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient'
+import { getActiveSupabase } from '../lib/supabaseClient'
 import { registrarMovimiento } from './inventarioMovimientos'
 
 export async function getProductos({
@@ -9,6 +9,7 @@ export async function getProductos({
   offset = 0,
   categoria = null
 } = {}) {
+  const supabase = getActiveSupabase()
   let query = supabase
     .from('productos')
     .select('*', { count: 'exact' })
@@ -43,20 +44,35 @@ export async function getProductos({
 export async function addProducto(producto) {
   if (!producto.nombre) throw new Error('El producto debe tener nombre')
 
+  const supabase = getActiveSupabase()
   const stockInicial = producto.stock ? Number(producto.stock) : 0
+  
+  const payload = {
+    nombre: producto.nombre.trim(),
+    codigo: producto.codigo?.trim() || null,
+    categoria: producto.categoria?.trim() || null,
+    unidad_medida: producto.unidad_medida || 'lbs',
+    tipo_venta: producto.tipo_venta || 'UNIDAD',
+    precio: producto.precio ? Number(producto.precio) : 0,
+    descripcion: producto.descripcion?.trim() || null
+  }
+
+  // Atributos exclusivos de mototech (no enviar en esquema carniceria/public para evitar error PGRST204)
+  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+  if (isMotoTech) {
+    if (producto.marca !== undefined) payload.marca = producto.marca?.trim() || null
+    if (producto.modelo !== undefined) payload.modelo = producto.modelo?.trim() || null
+    if (producto.talla !== undefined) payload.talla = producto.talla?.trim() || null
+    if (producto.color !== undefined) payload.color = producto.color?.trim() || null
+    if (producto.codigo_barra !== undefined) payload.codigo_barra = producto.codigo_barra?.trim() || null
+  }
+  if (producto.stock !== undefined) payload.stock = stockInicial
+  if (producto.stock_granel !== undefined) payload.stock_granel = stockInicial
+  if (producto.stock_empacado !== undefined) payload.stock_empacado = 0
+
   const { data, error } = await supabase
     .from('productos')
-    .insert([{
-      nombre: producto.nombre.trim(),
-      codigo: producto.codigo?.trim() || null,
-      categoria: producto.categoria?.trim() || null,
-      unidad_medida: producto.unidad_medida || 'lbs',
-      tipo_venta: producto.tipo_venta || 'UNIDAD',
-      stock_granel: stockInicial,
-      stock_empacado: 0,
-      precio: producto.precio ? Number(producto.precio) : 0,
-      descripcion: producto.descripcion?.trim() || null
-    }])
+    .insert([payload])
     .select()
 
   if (error) {
@@ -88,6 +104,7 @@ export async function addProducto(producto) {
 export async function updateProducto(id, producto) {
   if (!id) throw new Error('ID no válido para actualización')
 
+  const supabase = getActiveSupabase()
   const { data: productoAnterior } = await supabase
     .from('productos')
     .select('stock, stock_granel, stock_empacado, nombre')
@@ -104,19 +121,31 @@ export async function updateProducto(id, producto) {
   const stockNuevoTotal = stockGranelNuevo + stockEmpacadoNuevo
   const diferencia = stockNuevoTotal - stockAnterior
 
+  const payload = {
+    nombre: producto.nombre?.trim(),
+    codigo: producto.codigo?.trim() || null,
+    categoria: producto.categoria?.trim(),
+    unidad_medida: producto.unidad_medida || 'lbs',
+    tipo_venta: producto.tipo_venta || 'UNIDAD',
+    stock_granel: stockGranelNuevo,
+    stock_empacado: stockEmpacadoNuevo,
+    precio: producto.precio ? Number(producto.precio) : 0,
+    descripcion: producto.descripcion?.trim() || null
+  }
+
+  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+  if (producto.stock !== undefined) payload.stock = Number(producto.stock)
+  if (isMotoTech) {
+    if (producto.marca !== undefined) payload.marca = producto.marca?.trim() || null
+    if (producto.modelo !== undefined) payload.modelo = producto.modelo?.trim() || null
+    if (producto.talla !== undefined) payload.talla = producto.talla?.trim() || null
+    if (producto.color !== undefined) payload.color = producto.color?.trim() || null
+    if (producto.codigo_barra !== undefined) payload.codigo_barra = producto.codigo_barra?.trim() || null
+  }
+
   const { data, error } = await supabase
     .from('productos')
-    .update({
-      nombre: producto.nombre?.trim(),
-      codigo: producto.codigo?.trim() || null,
-      categoria: producto.categoria?.trim(),
-      unidad_medida: producto.unidad_medida || 'lbs',
-      tipo_venta: producto.tipo_venta || 'UNIDAD',
-      stock_granel: stockGranelNuevo,
-      stock_empacado: stockEmpacadoNuevo,
-      precio: producto.precio ? Number(producto.precio) : 0,
-      descripcion: producto.descripcion?.trim() || null
-    })
+    .update(payload)
     .eq('id', id)
     .select()
 
@@ -149,6 +178,7 @@ export async function updateProducto(id, producto) {
 export async function deleteProducto(id) {
   if (!id) throw new Error('ID no válido para eliminación')
 
+  const supabase = getActiveSupabase()
   const { data: producto } = await supabase
     .from('productos')
     .select('id, nombre, stock')
@@ -166,7 +196,6 @@ export async function deleteProducto(id) {
     throw error
   }
 
-  // Checking if actual deletion happened (RLS might return success but count 0)
   if (!deletedData || deletedData.length === 0) {
     throw new Error('No tienes permisos para eliminar este producto o el producto no existe.')
   }
@@ -192,6 +221,7 @@ export async function deleteProducto(id) {
 
 export async function getProductoByCodigo(codigo) {
   if (!codigo) return null
+  const supabase = getActiveSupabase()
   const cleanCode = codigo.trim()
   const { data, error } = await supabase
     .from('productos')
