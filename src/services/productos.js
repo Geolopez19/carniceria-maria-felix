@@ -67,8 +67,10 @@ export async function addProducto(producto) {
     if (producto.codigo_barra !== undefined) payload.codigo_barra = producto.codigo_barra?.trim() || null
   }
   if (producto.stock !== undefined) payload.stock = stockInicial
-  if (producto.stock_granel !== undefined) payload.stock_granel = stockInicial
-  if (producto.stock_empacado !== undefined) payload.stock_empacado = 0
+  if (!isMotoTech) {
+    if (producto.stock_granel !== undefined) payload.stock_granel = stockInicial
+    if (producto.stock_empacado !== undefined) payload.stock_empacado = 0
+  }
 
   const { data, error } = await supabase
     .from('productos')
@@ -105,9 +107,12 @@ export async function updateProducto(id, producto) {
   if (!id) throw new Error('ID no válido para actualización')
 
   const supabase = getActiveSupabase()
+  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+  const selectFields = isMotoTech ? 'stock, nombre' : 'stock, stock_granel, stock_empacado, nombre'
+
   const { data: productoAnterior } = await supabase
     .from('productos')
-    .select('stock, stock_granel, stock_empacado, nombre')
+    .select(selectFields)
     .eq('id', id)
     .single()
 
@@ -118,7 +123,9 @@ export async function updateProducto(id, producto) {
   const stockGranelNuevo = producto.stock_granel !== undefined ? Number(producto.stock_granel) : (producto.stock !== undefined ? Number(producto.stock) : stockGranelAnterior)
   const stockEmpacadoNuevo = producto.stock_empacado !== undefined ? Number(producto.stock_empacado) : stockEmpacadoAnterior
 
-  const stockNuevoTotal = stockGranelNuevo + stockEmpacadoNuevo
+  const stockNuevoTotal = isMotoTech 
+    ? (producto.stock !== undefined ? Number(producto.stock) : stockAnterior)
+    : (stockGranelNuevo + stockEmpacadoNuevo)
   const diferencia = stockNuevoTotal - stockAnterior
 
   const payload = {
@@ -127,15 +134,16 @@ export async function updateProducto(id, producto) {
     categoria: producto.categoria?.trim(),
     unidad_medida: producto.unidad_medida || 'lbs',
     tipo_venta: producto.tipo_venta || 'UNIDAD',
-    stock_granel: stockGranelNuevo,
-    stock_empacado: stockEmpacadoNuevo,
     precio: producto.precio ? Number(producto.precio) : 0,
     descripcion: producto.descripcion?.trim() || null
   }
 
-  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
   if (producto.stock !== undefined) payload.stock = Number(producto.stock)
-  if (isMotoTech) {
+
+  if (!isMotoTech) {
+    payload.stock_granel = stockGranelNuevo
+    payload.stock_empacado = stockEmpacadoNuevo
+  } else {
     if (producto.marca !== undefined) payload.marca = producto.marca?.trim() || null
     if (producto.modelo !== undefined) payload.modelo = producto.modelo?.trim() || null
     if (producto.talla !== undefined) payload.talla = producto.talla?.trim() || null

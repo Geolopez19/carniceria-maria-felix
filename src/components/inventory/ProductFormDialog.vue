@@ -106,7 +106,7 @@
       </div>
 
       <!-- Stock y Precio -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-if="mode === 'editar'">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-if="mode === 'editar' && !companyStore.isMotoTech">
         <div class="flex flex-col gap-2">
           <label for="stock_granel" class="font-semibold text-sm">Stock a Granel ({{ form.unidad_medida || 'lbs' }})</label>
           <InputNumber 

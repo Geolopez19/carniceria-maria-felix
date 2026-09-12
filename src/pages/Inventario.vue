@@ -1019,13 +1019,17 @@ const guardarEntradaStock = async () => {
     const id = modalEntrada.value.producto.id
     const prod = modalEntrada.value.producto
     
-    // Al agregar stock manual, incrementamos el stock a granel (que aplica para todos los tipos de venta)
-    const nuevoStockGranel = Number(prod.stock_granel || 0) + Number(modalEntrada.value.cantidad)
+    // Al agregar stock manual: si es mototech incrementamos stock general, si es carnicería stock_granel
+    const cantidad = Number(modalEntrada.value.cantidad)
+    const updateData = { ...prod }
+
+    if (companyStore.isMotoTech) {
+      updateData.stock = Number(prod.stock || 0) + cantidad
+    } else {
+      updateData.stock_granel = Number(prod.stock_granel || 0) + cantidad
+    }
     
-    await updateProducto(id, { 
-      ...prod,
-      stock_granel: nuevoStockGranel 
-    })
+    await updateProducto(id, updateData)
     
     showSuccess(`Se agregaron ${modalEntrada.value.cantidad} unidades a ${modalEntrada.value.producto.nombre}`)
     modalEntrada.value.visible = false
