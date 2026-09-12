@@ -73,13 +73,9 @@
         <span>Subtotal:</span>
         <span class="font-bold">{{ formatCurrency(totalAmount) }}</span>
       </div>
-      <div class="flex justify-between" v-if="order?.discount > 0">
-        <span>Descuento:</span>
-        <span class="font-bold">-{{ formatCurrency(order.discount) }}</span>
-      </div>
-      <div class="flex justify-between" v-if="(order?.tax_total || 0) > 0">
-        <span>IVA:</span>
-        <span class="font-bold">{{ formatCurrency(order.tax_total) }}</span>
+      <div class="flex justify-between" v-if="discountAmount > 0 || discountPercent > 0">
+        <span>Descuento{{ discountPercent > 0 ? ` (${discountPercent}%)` : '' }}:</span>
+        <span class="font-bold">-{{ formatCurrency(discountAmount) }}</span>
       </div>
       <div class="flex justify-between font-extrabold text-base mt-2 border-t-2 border-dashed border-black pt-2">
         <span>TOTAL:</span>
@@ -130,6 +126,14 @@ const props = defineProps({
 const totalAmount = computed(() => {
   if (!props.items) return 0
   return props.items.reduce((sum, item) => sum + (item.qty * item.unit_price), 0)
+})
+
+const discountAmount = computed(() => {
+  return Number(props.order?.discount_total || props.order?.discount || 0)
+})
+
+const discountPercent = computed(() => {
+  return Number(props.order?.discount_percent || 0)
 })
 
 const formatCurrency = (value) => {

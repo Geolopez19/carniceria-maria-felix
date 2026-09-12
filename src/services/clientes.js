@@ -130,3 +130,49 @@ export async function deleteCustomer(id) {
   return true
 }
 
+export async function findOrCreateCustomer({ name, phone, email, national_id, address }) {
+  if (!name || !name.trim()) return null
+  const supabase = getActiveSupabase()
+  const cleanName = name.trim()
+  const cleanPhone = phone?.trim() || null
+  const cleanEmail = email?.trim() || null
+
+  // 1. Buscar por teléfono o email si existen
+  if (cleanPhone || cleanEmail) {
+    const orConditions = []
+    if (cleanPhone) orConditions.push(`phone.eq.${cleanPhone}`)
+    if (cleanEmail) orConditions.push(`email.eq.${cleanEmail}`)
+
+    const { data: existingByContact, error: err1 } = await supabase
+      .from('customers')
+      .select('*')
+      .or(orConditions.join(','))
+      .limit(1)
+
+    if (!err1 && existingByContact && existingByContact.length > 0) {
+      return existingByContact[0]
+    }
+  }
+
+  // 2. Buscar por nombre exacto (case-insensitive)
+  const { data: existingByName, error: err2 } = await supabase
+    .from('customers')
+    .select('*')
+    .ilike('name', cleanName)
+    .limit(1)
+
+  if (!err2 && existingByName && existingByName.length > 0) {
+    return existingByName[0]
+  }
+
+  // 3. Si no existe coincidencia, crear un nuevo cliente
+  return await createCustomer({
+    name: cleanName,
+    phone: cleanPhone,
+    email: cleanEmail,
+    national_id: national_id || null,
+    address: address || null
+  })
+}
+
+

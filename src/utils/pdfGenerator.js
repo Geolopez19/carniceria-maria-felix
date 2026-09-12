@@ -188,12 +188,15 @@ export async function getInvoicePDF({ order, items, business }) {
   pdf.text(`${business.currency} ${fmt(order.subtotal)}`, 185, yPos, { align: 'right' })
   yPos += 6
 
-  // Impuestos (solo si aplica)
-  if (Number(order.tax_total || 0) > 0) {
-    pdf.setTextColor(...TEXT_GRAY)
-    pdf.text('IVA (15%):', 140, yPos, { align: 'right' })
-    pdf.setTextColor(...TEXT_DARK)
-    pdf.text(`${business.currency} ${fmt(order.tax_total)}`, 185, yPos, { align: 'right' })
+  // Descuento (solo si aplica)
+  const discountAmount = Number(order.discount_total || order.discount || 0)
+  const discountPercent = Number(order.discount_percent || 0)
+
+  if (discountAmount > 0 || discountPercent > 0) {
+    const labelPct = discountPercent > 0 ? ` (${discountPercent}%)` : ''
+    pdf.setTextColor(217, 119, 6) // amber-600
+    pdf.text(`Descuento${labelPct}:`, 140, yPos, { align: 'right' })
+    pdf.text(`-${business.currency} ${fmt(discountAmount)}`, 185, yPos, { align: 'right' })
     yPos += 7
   }
 

@@ -78,10 +78,14 @@ export async function deleteOrderItemsNotInList(orderId, activeItemIds = []) {
 
 export async function deleteOrder(orderId) {
   const supabase = getActiveSupabase()
+  // Primero eliminar los ítems asociados a la oferta
+  const { error: itemsErr } = await supabase.from('sales_order_items').delete().eq('order_id', orderId)
+  if (itemsErr) throw itemsErr
+
   const { data, error } = await supabase.from('sales_orders').delete().eq('id', orderId).select()
   if (error) throw error
   if (!data || data.length === 0) {
-    throw new Error('No se pudo eliminar la factura (verifique sus permisos).')
+    throw new Error('No se pudo eliminar la oferta (verifique sus permisos).')
   }
 }
 

@@ -54,6 +54,7 @@ export async function addProducto(producto) {
     unidad_medida: producto.unidad_medida || 'lbs',
     tipo_venta: producto.tipo_venta || 'UNIDAD',
     precio: producto.precio ? Number(producto.precio) : 0,
+    costo: producto.costo !== undefined && producto.costo !== null ? Number(producto.costo) : 0,
     descripcion: producto.descripcion?.trim() || null
   }
 
@@ -135,6 +136,7 @@ export async function updateProducto(id, producto) {
     unidad_medida: producto.unidad_medida || 'lbs',
     tipo_venta: producto.tipo_venta || 'UNIDAD',
     precio: producto.precio ? Number(producto.precio) : 0,
+    costo: producto.costo !== undefined && producto.costo !== null ? Number(producto.costo) : 0,
     descripcion: producto.descripcion?.trim() || null
   }
 

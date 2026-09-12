@@ -22,11 +22,11 @@
             </Card>
             <Card class="bg-green-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-green-600 uppercase">Stock Total</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-green-900">{{ metricas.stockTotal }}</span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-green-900">{{ metricas.stockTotal.toLocaleString('es-NI', { maximumFractionDigits: 2 }) }}</span></template>
             </Card>
             <Card class="bg-indigo-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-indigo-600 uppercase">Valor Total</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-indigo-900">C${{ metricas.valorTotal.toLocaleString('es-NI') }}</span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-indigo-900">{{ formatCurrency(metricas.valorTotal) }}</span></template>
             </Card>
             <Card class="bg-red-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-red-600 uppercase">Bajo Stock</span></template>
@@ -100,10 +100,19 @@
                   </div>
                 </template>
               </Column>
-              <Column field="precio" header="Precio" sortable>
+              <Column field="costo" header="Costo Compra" sortable class="hidden sm:table-cell">
                 <template #body="{ data }">
-                  <span class="font-bold text-slate-800">{{ formatCurrency(data.precio) }}</span>
-                  <span class="text-[10px] text-slate-500 font-medium"> / {{ data.unidad_medida || 'lb' }}</span>
+                  <span class="font-medium text-slate-600">{{ formatCurrency(data.costo || 0) }}</span>
+                </template>
+              </Column>
+              <Column field="precio" header="Precio Venta" sortable>
+                <template #body="{ data }">
+                  <div class="flex flex-col">
+                    <span class="font-bold text-slate-800">{{ formatCurrency(data.precio) }}</span>
+                    <span v-if="data.precio > 0 && data.costo > 0" class="text-[10px] font-bold" :class="(data.precio - data.costo) >= 0 ? 'text-emerald-600' : 'text-red-500'">
+                      Margen: {{ formatCurrency(data.precio - data.costo) }} ({{ (((data.precio - data.costo) / data.precio) * 100).toFixed(0) }}%)
+                    </span>
+                  </div>
                 </template>
               </Column>
               <Column header="Acciones">
@@ -975,8 +984,10 @@ const cargarMetricasYCategorias = async () => {
   try {
     const res = await getProductos({ limit: 1000 })
     const todos = res.data
-    metricas.value.stockTotal = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
-    metricas.value.valorTotal = todos.reduce((a, b) => a + Number(b.precio || 0) * Number(b.stock || 0), 0)
+    const stockTotal = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
+    const valorTotal = todos.reduce((a, b) => a + Number(b.precio || 0) * Number(b.stock || 0), 0)
+    metricas.value.stockTotal = Number(stockTotal.toFixed(2))
+    metricas.value.valorTotal = Number(valorTotal.toFixed(2))
     metricas.value.bajoStock = todos.filter(p => (p.stock || 0) < 10).length
     todasLasCategorias.value = [...new Set(todos.map(p => p.categoria).filter(Boolean))]
   } catch (err) {

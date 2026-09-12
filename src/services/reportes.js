@@ -224,7 +224,14 @@ export async function getProductosMasVendidos(fechaInicio, fechaFin, limit = 10)
     productos[key].cantidad += Number(item.qty || 0)
     productos[key].ingresos += Number(item.line_total || 0)
   })
-  return Object.values(productos).sort((a, b) => b.cantidad - a.cantidad).slice(0, limit)
+  return Object.values(productos)
+    .map(p => ({
+      ...p,
+      cantidad: Number(p.cantidad.toFixed(2)),
+      ingresos: Number(p.ingresos.toFixed(2))
+    }))
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, limit)
 }
 
 export async function getVentasPorDia(fechaInicio, fechaFin) {

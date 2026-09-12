@@ -92,7 +92,11 @@
           <template #content>
             <DataTable :value="productosMasVendidos" class="p-datatable-sm" :rows="5" scrollable>
               <Column field="product_name" header="Producto"></Column>
-              <Column field="cantidad" header="Cant." class="md:text-right"></Column>
+              <Column field="cantidad" header="Cant." class="md:text-right">
+                <template #body="{ data }">
+                  {{ Number(data.cantidad || 0).toLocaleString('es-NI', { maximumFractionDigits: 2 }) }}
+                </template>
+              </Column>
               <Column field="ingresos" header="Ingresos" class="md:text-right">
                 <template #body="{ data }">{{ formatCurrency(data.ingresos) }}</template>
               </Column>
@@ -108,7 +112,7 @@
               <Column field="nombre" header="Producto"></Column>
               <Column field="stock" header="Stock" class="md:text-right font-bold md:w-20">
                 <template #body="{ data }">
-                  <span :class="data.stock <= 5 ? 'text-red-600' : 'text-orange-500'">{{ data.stock }}</span>
+                  <span :class="data.stock <= 5 ? 'text-red-600' : 'text-orange-500'">{{ Number(data.stock || 0).toLocaleString('es-NI', { maximumFractionDigits: 2 }) }}</span>
                 </template>
               </Column>
               <Column header="Estado" class="w-24 text-center">
@@ -204,8 +208,18 @@ const loadData = async () => {
       inicio = getFechaInicioMesAnterior()
       fin = getFechaFinMesAnterior()
     } else {
-      inicio = fechaInicio.value ? new Date(fechaInicio.value).toISOString().split('T')[0] : getFechaInicioMes()
-      fin = fechaFin.value ? new Date(fechaFin.value).toISOString().split('T')[0] : getFechaFinMes()
+      if (fechaInicio.value) {
+        const d = new Date(fechaInicio.value)
+        inicio = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).toISOString()
+      } else {
+        inicio = getFechaInicioMes()
+      }
+      if (fechaFin.value) {
+        const d = new Date(fechaFin.value)
+        fin = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).toISOString()
+      } else {
+        fin = getFechaFinMes()
+      }
     }
     
     const data = await getReportesCompletos(inicio, fin)
@@ -220,7 +234,10 @@ const loadData = async () => {
     const fechas = [...new Set([...ventas.map(v => v.fecha), ...compras.map(c => c.fecha)])].sort()
     
     chartData.value = {
-      labels: fechas.map(f => new Date(f).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' })),
+      labels: fechas.map(f => {
+        const parts = f.split('-')
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}` : f
+      }),
       datasets: [
         {
           label: 'Ingresos (Ventas)',

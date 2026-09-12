@@ -105,7 +105,7 @@
         </div>
       </div>
 
-      <!-- Stock y Precio -->
+      <!-- Stock, Costo y Precio -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-if="mode === 'editar' && !companyStore.isMotoTech">
         <div class="flex flex-col gap-2">
           <label for="stock_granel" class="font-semibold text-sm">Stock a Granel ({{ form.unidad_medida || 'lbs' }})</label>
@@ -129,20 +129,21 @@
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label for="precio" class="font-semibold text-sm">Precio por {{ getUnidadLabel(form.unidad_medida) }}</label>
+          <label for="costo" class="font-semibold text-sm text-slate-700">Costo de Compra (C$)</label>
           <InputNumber 
-            id="precio" 
-            v-model="form.precio" 
+            id="costo" 
+            v-model="form.costo" 
             mode="currency" 
             currency="NIO" 
             locale="es-NI" 
             :minFractionDigits="2" 
             :maxFractionDigits="2" 
+            placeholder="0.00"
             fluid 
           />
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-else>
         <div class="flex flex-col gap-2">
           <label for="stock" class="font-semibold text-sm">Stock Inicial ({{ form.unidad_medida || 'lbs' }})</label>
           <InputNumber 
@@ -155,7 +156,39 @@
           />
         </div>
         <div class="flex flex-col gap-2">
-          <label for="precio" class="font-semibold text-sm">Precio por {{ getUnidadLabel(form.unidad_medida) }}</label>
+          <label for="costo" class="font-semibold text-sm text-slate-700">Costo de Compra (C$)</label>
+          <InputNumber 
+            id="costo" 
+            v-model="form.costo" 
+            mode="currency" 
+            currency="NIO" 
+            locale="es-NI" 
+            :minFractionDigits="2" 
+            :maxFractionDigits="2" 
+            placeholder="0.00"
+            fluid 
+          />
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="precio" class="font-semibold text-sm text-slate-700">Precio de Venta (C$)</label>
+          <InputNumber 
+            id="precio" 
+            v-model="form.precio" 
+            mode="currency" 
+            currency="NIO" 
+            locale="es-NI" 
+            :minFractionDigits="2" 
+            :maxFractionDigits="2" 
+            placeholder="0.00"
+            fluid 
+          />
+        </div>
+      </div>
+
+      <!-- En modo editar carnicería: fila para Precio de Venta -->
+      <div v-if="mode === 'editar' && !companyStore.isMotoTech" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-2">
+          <label for="precio" class="font-semibold text-sm text-slate-700">Precio de Venta por {{ getUnidadLabel(form.unidad_medida) }}</label>
           <InputNumber 
             id="precio" 
             v-model="form.precio" 
@@ -166,6 +199,25 @@
             :maxFractionDigits="2" 
             fluid 
           />
+        </div>
+      </div>
+
+      <!-- Tarjeta Resumen de Margen de Ganancia -->
+      <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs sm:text-sm">
+        <div class="flex items-center gap-2 font-medium text-slate-600">
+          <i class="pi pi-percentage text-emerald-600 font-bold"></i>
+          <span>Margen Estimado de Ganancia:</span>
+        </div>
+        <div class="flex items-center gap-3 font-bold">
+          <span :class="margenCalculado.ganancia >= 0 ? 'text-emerald-700' : 'text-red-600'">
+            {{ formatCurrency(margenCalculado.ganancia) }} / {{ getUnidadLabel(form.unidad_medida) }}
+          </span>
+          <span 
+            class="px-2 py-0.5 rounded text-xs" 
+            :class="margenCalculado.porcentaje >= 20 ? 'bg-emerald-100 text-emerald-800' : margenCalculado.porcentaje > 0 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'"
+          >
+            {{ margenCalculado.porcentaje }}%
+          </span>
         </div>
       </div>
 
@@ -202,11 +254,12 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import QRCode from 'qrcode'
 import { addProducto, updateProducto } from '../../services/productos'
 import { actualizarPreciosPaquetesProducto } from '../../services/paquetes'
 import { handleError, showSuccess } from '../../utils/errorHandler'
+import { formatCurrency } from '../../utils/calculations'
 
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
@@ -215,7 +268,6 @@ import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
 import { useCompanyStore } from '../../stores/companyStore'
-import { computed } from 'vue'
 
 const companyStore = useCompanyStore()
 
@@ -302,7 +354,19 @@ const form = ref({
   stock_granel: 0,
   stock_empacado: 0,
   precio: 0,
+  costo: 0,
   descripcion: ''
+})
+
+const margenCalculado = computed(() => {
+  const pVenta = Number(form.value.precio || 0)
+  const pCosto = Number(form.value.costo || 0)
+  const ganancia = pVenta - pCosto
+  const porcentaje = pVenta > 0 ? (ganancia / pVenta) * 100 : 0
+  return {
+    ganancia: Number(ganancia.toFixed(2)),
+    porcentaje: Number(porcentaje.toFixed(1))
+  }
 })
 
 watch(() => props.initialData, (val) => {
@@ -313,6 +377,7 @@ watch(() => props.initialData, (val) => {
       tipo_venta: 'UNIDAD',
       stock_granel: 0,
       stock_empacado: 0,
+      costo: 0,
       ...val 
     }
   } else {
@@ -353,6 +418,7 @@ function resetForm() {
     stock_granel: 0,
     stock_empacado: 0,
     precio: 0, 
+    costo: 0,
     descripcion: '' 
   }
   qrDataUrl.value = ''

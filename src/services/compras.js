@@ -134,6 +134,18 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
     for (const item of items) {
       if (!item.product_id || item.qty <= 0) continue
 
+      // Actualizar el costo del producto al último costo de compra si es válido
+      if (item.unit_cost && Number(item.unit_cost) > 0) {
+        try {
+          await supabase
+            .from('productos')
+            .update({ costo: Number(item.unit_cost) })
+            .eq('id', item.product_id)
+        } catch (cErr) {
+          console.warn('⚠️ No se pudo actualizar el costo del producto:', cErr)
+        }
+      }
+
       const isPackage = item.tipo_ingreso === 'paquete' || (item.paquetes_list && item.paquetes_list.length > 0)
 
       if (isPackage) {
