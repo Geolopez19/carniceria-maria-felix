@@ -14,6 +14,7 @@ import { ref, onMounted, watch } from 'vue'
 import { supabase } from './lib/supabaseClient'
 import { useRouter } from 'vue-router'
 import { useToastStore } from './stores/toastStore'
+import { useCompanyStore } from './stores/companyStore'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
 
@@ -37,25 +38,31 @@ onMounted(async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) throw error
 
+    if (session) {
+      const companyStore = useCompanyStore()
+      await companyStore.loadAuthorizedCompanies()
+    }
   } catch (err) {
     console.error('App: Error al obtener sesión:', err)
   }
   
   // Escuchar cambios de autenticación
-  supabase.auth.onAuthStateChange((event, session) => {
-
-    
+  supabase.auth.onAuthStateChange(async (event, session) => {
     // Solo navegar si es un cambio real de estado
     if (event === 'SIGNED_OUT') {
       router.push('/login')
-    } else if (event === 'SIGNED_IN' && router.currentRoute.value.path === '/login') {
-      // Solo redirigir a inicio si estamos en login
-      router.push('/')
+    } else if (event === 'SIGNED_IN') {
+      const companyStore = useCompanyStore()
+      if (companyStore.authorizedCompanyIds.length <= 1) {
+        await companyStore.loadAuthorizedCompanies()
+      }
+      
+      if (router.currentRoute.value.path === '/login') {
+        router.push('/')
+      }
     } else if (event === 'PASSWORD_RECOVERY') {
-
        router.push('/login?recovery=true')
     }
-    // Ignorar INITIAL_SESSION y otros eventos que no requieren navegación
   })
 
   loading.value = false

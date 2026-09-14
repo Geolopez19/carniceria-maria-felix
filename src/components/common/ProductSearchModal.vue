@@ -219,10 +219,19 @@ const initialCreateData = ref({})
 
 const isPurple = computed(() => props.theme === 'purple')
 
-const onSearch = async () => {
-  if (searchText.value.length < 2) return
-  const res = await getProductos({ search: searchText.value })
-  foundProducts.value = res.data
+let searchTimeout = null;
+const onSearch = () => {
+  if (searchText.value.length < 2) return;
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await getProductos({ search: searchText.value, limit: 30 });
+      foundProducts.value = res.data || [];
+    } catch (e) {
+      console.error(e);
+      foundProducts.value = [];
+    }
+  }, 300);
 }
 
 const selectProduct = (e) => {

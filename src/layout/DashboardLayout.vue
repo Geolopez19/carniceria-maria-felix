@@ -16,10 +16,10 @@
           </div>
 
           <!-- Selector de Empresa (Switch Multi-empresa) -->
-          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200" v-if="companyStore.authorizedCompaniesList.length > 1">
             <button
               type="button"
-              v-for="c in companyStore.COMPANIES"
+              v-for="c in companyStore.authorizedCompaniesList"
               :key="c.id"
               @click="companyStore.setCompany(c.id)"
               class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5"
@@ -79,7 +79,8 @@ const isLoadingProfile = ref(true)
 
 onMounted(async () => {
   try {
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const authUser = session?.user
     user.value = authUser
     
     if (authUser) {

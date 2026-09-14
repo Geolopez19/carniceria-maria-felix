@@ -208,22 +208,6 @@
                 "
                 v-tooltip.top="'Descargar PDF'"
               />
-              <Button
-                type="button"
-                icon="pi pi-trash"
-                severity="danger"
-                text
-                rounded
-                @click="
-                  (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    confirmDeleteOffer(data);
-                  }
-                "
-                v-if="data.status === 'draft'"
-                v-tooltip.top="'Eliminar'"
-              />
             </div>
           </template>
         </Column>
@@ -296,7 +280,7 @@
               <span class="text-xs text-slate-500 font-medium">Requerido para facturar</span>
             </div>
 
-            <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
               <!-- Método de Pago -->
               <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -336,32 +320,68 @@
                 </small>
               </div>
 
-              <!-- Opción de Descuento (0%, 5%, 10%, 15%) -->
+              <!-- Aplicar IVA Switch / Toggle -->
               <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <i class="pi pi-percentage text-amber-500"></i>
-                  Descuento en Oferta
+                  <i class="pi pi-percentage text-emerald-500"></i>
+                  Impuesto de Venta (IVA)
                 </label>
-                <div class="grid grid-cols-4 gap-2">
-                  <button
-                    v-for="opt in [0, 5, 10, 15]"
-                    :key="opt"
-                    type="button"
-                    :disabled="readOnly"
-                    @click="discountPercent = opt"
-                    class="py-2.5 px-2 rounded-xl text-xs font-bold transition-all border flex flex-col items-center justify-center gap-0.5"
-                    :class="[
-                      discountPercent === opt
-                        ? 'bg-amber-500 text-white border-amber-600 shadow-md scale-105'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300',
-                      readOnly ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                    ]"
-                  >
-                    <span>{{ opt === 0 ? '0%' : `${opt}%` }}</span>
-                    <span class="text-[10px] font-normal" :class="discountPercent === opt ? 'text-amber-100' : 'text-slate-400'">
-                      {{ opt === 0 ? 'Sin desc.' : 'Aplicar' }}
-                    </span>
-                  </button>
+                <div 
+                  class="flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none"
+                  :class="applyTax ? 'bg-emerald-50/60 border-emerald-300 shadow-xs' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100/70'"
+                  @click="toggleApplyTax"
+                >
+                  <div class="flex items-center gap-3">
+                    <div 
+                      class="w-6 h-6 rounded-md flex items-center justify-center transition-colors border"
+                      :class="applyTax ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-transparent'"
+                    >
+                      <i class="pi pi-check text-xs font-bold"></i>
+                    </div>
+                    <div>
+                      <span class="text-sm font-bold block" :class="applyTax ? 'text-emerald-800' : 'text-slate-700'">
+                        Aplicar IVA ({{ IVA_PORCENTAJE }}%)
+                      </span>
+                      <span class="text-[11px] block" :class="applyTax ? 'text-emerald-600 font-medium' : 'text-slate-400'">
+                        {{ applyTax ? 'El IVA se calcula sobre los productos' : 'Desactivado (Venta exenta de IVA)' }}
+                      </span>
+                    </div>
+                  </div>
+                  <Tag 
+                    :value="applyTax ? 'Con IVA' : 'Exento'" 
+                    :severity="applyTax ? 'success' : 'secondary'"
+                    class="text-[10px] uppercase font-bold px-2"
+                  />
+                </div>
+              </div>
+
+              <!-- Cliente Gym Switch -->
+              <div class="flex flex-col gap-2 col-span-1 md:col-span-2 lg:col-span-1">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <i class="pi pi-star text-amber-500"></i>
+                  Beneficio Gym
+                </label>
+                <div 
+                  class="flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none"
+                  :class="isGym ? 'bg-amber-50/60 border-amber-300 shadow-xs' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100/70'"
+                  @click="toggleGym"
+                >
+                  <div class="flex items-center gap-3">
+                    <div 
+                      class="w-6 h-6 rounded-md flex items-center justify-center transition-colors border"
+                      :class="isGym ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-300 text-transparent'"
+                    >
+                      <i class="pi pi-check text-xs font-bold"></i>
+                    </div>
+                    <div>
+                      <span class="text-sm font-bold block" :class="isGym ? 'text-amber-800' : 'text-slate-700'">
+                        Cliente Gym
+                      </span>
+                      <span class="text-[11px] block" :class="isGym ? 'text-amber-600 font-medium' : 'text-slate-400'">
+                        {{ isGym ? 'Se quita IVA y se muestra descuento' : 'Desactivado' }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -371,11 +391,14 @@
           <SalesItemsTable 
             v-model:items="items" 
             :readOnly="readOnly" 
+            :applyTax="applyTax" 
           />
 
           <!-- Resumen de Totales -->
           <SalesTotals 
             :totals="totals" 
+            :applyTax="applyTax" 
+            :isGym="isGym"
           />
         </div>
 
@@ -402,18 +425,6 @@
                 :loading="isSaving"
                 @click.prevent="handleFacturar"
                 class="shadow-md bg-green-600 !text-white hover:bg-green-700 border-0"
-                style="color: white !important"
-              />
-              <Button
-                type="button"
-                label="Eliminar Oferta"
-                icon="pi pi-trash"
-                severity="danger"
-                size="small"
-                :loading="isSaving"
-                @click.prevent="confirmDeleteOffer(currentOrder)"
-                v-if="currentOrder?.id"
-                class="shadow-md !text-white"
                 style="color: white !important"
               />
             </template>
@@ -505,14 +516,13 @@ import {
   patchOrder,
   finalizeOrder,
   cancelOrder,
-  deleteOrder,
 } from "../services/ventas";
+import { createCustomer } from "../services/clientes";
 import { formatCurrency, calculateOrderTotals } from "../utils/calculations";
 import { handleError, showSuccess, showWarning } from "../utils/errorHandler";
 import { useBusinessStore } from "../stores/businessStore";
 import { printInvoice } from "../utils/printInvoice";
 import { downloadInvoicePDF } from "../utils/downloadPDF";
-import { findOrCreateCustomer } from "../services/clientes";
 
 import SalesCustomerForm from "../components/sales/SalesCustomerForm.vue";
 import SalesItemsTable from "../components/sales/SalesItemsTable.vue";
@@ -589,13 +599,37 @@ const customer = ref({ name: "", phone: "", email: "" });
 const customerId = ref(null);
 const isSaving = ref(false);
 
-// Nuevos estados para Método de Pago y Descuento (por defecto desactivados/vacíos)
+// Nuevos estados para Método de Pago e IVA (por defecto desactivados/vacíos)
 const paymentMethod = ref(null);
 const paymentMethodError = ref(false);
-const discountPercent = ref(0);
+const applyTax = ref(false);
+const isGym = ref(false);
 const cashDialogVisible = ref(false);
 const amountReceived = ref(0);
 const changeGiven = ref(0);
+
+const toggleGym = () => {
+  if (readOnly.value) return;
+  isGym.value = !isGym.value;
+  if (isGym.value && applyTax.value) {
+    toggleApplyTax(); // Si se marca Gym y el IVA estaba activo, lo desactivamos
+  }
+};
+
+const toggleApplyTax = () => {
+  if (readOnly.value) return;
+  applyTax.value = !applyTax.value;
+  // Sincronizar los ítems actuales al nuevo estado de impuesto
+  items.value = items.value.map((item) => {
+    const taxRate = applyTax.value ? IVA_PORCENTAJE : 0;
+    const base = (Number(item.qty) || 0) * (Number(item.unit_price) || 0) - (Number(item.discount) || 0);
+    return {
+      ...item,
+      tax_rate: taxRate,
+      line_total: base + base * (taxRate / 100),
+    };
+  });
+};
 
 // Estado para impresión de ticket
 const printingOrder = ref(null);
@@ -603,8 +637,8 @@ const printingItems = ref([]);
 
 const readOnly = computed(() => currentOrder.value?.status !== "draft");
 
-// Totales usando la nueva utilidad calculada con discountPercent
-const totals = computed(() => calculateOrderTotals(items.value, discountPercent.value));
+// Totales usando la nueva utilidad calculada con applyTax
+const totals = computed(() => calculateOrderTotals(items.value, applyTax.value));
 
 // Funciones
 const statusLabel = (s) =>
@@ -626,10 +660,11 @@ const createOffer = () => {
   items.value = [];
   customer.value = { name: "", phone: "", email: "" };
   customerId.value = null;
-  // REGLA PRINCIPAL: Ningún método de pago ni descuento seleccionados por defecto
+  // REGLA PRINCIPAL: Ningún método de pago ni IVA seleccionados por defecto
   paymentMethod.value = null;
   paymentMethodError.value = false;
-  discountPercent.value = 0;
+  applyTax.value = false;
+  isGym.value = false;
   amountReceived.value = 0;
   changeGiven.value = 0;
   drawerVisible.value = true;
@@ -657,16 +692,14 @@ const openOffer = async (order) => {
     amountReceived.value = Number(order.amount_received || 0);
     changeGiven.value = Number(order.change_given || 0);
     
-    // Cargar porcentaje de descuento guardado
-    if (order.discount_percent !== undefined && order.discount_percent !== null) {
-      discountPercent.value = Number(order.discount_percent);
-    } else if (order.subtotal > 0 && order.discount > 0) {
-      // Si existía un monto de descuento previo, inferir aproximado
-      const approx = Math.round((Number(order.discount) / Number(order.subtotal)) * 100);
-      discountPercent.value = [5, 10, 15].includes(approx) ? approx : 0;
+    // Cargar estado de IVA respetando lo guardado originalmente
+    if (order.apply_tax !== undefined && order.apply_tax !== null) {
+      applyTax.value = Boolean(order.apply_tax);
     } else {
-      discountPercent.value = 0;
+      applyTax.value = Number(order.tax_total || order.tax || 0) > 0;
     }
+    
+    isGym.value = Boolean(order.is_gym);
 
     drawerVisible.value = true;
     items.value = await getOrderItems(order.id);
@@ -687,25 +720,19 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
 
   try {
     isSaving.value = true;
-
-    // Garantizar que el cliente existe o buscarlo/crearlo sin duplicar antes de asociarlo a la oferta
-    if (customer.value?.name && customer.value.name.trim()) {
+    
+    if (!customerId.value && customer.value.name) {
       try {
-        const foundOrCreated = await findOrCreateCustomer({
-          name: customer.value.name,
-          phone: customer.value.phone,
-          email: customer.value.email,
+        const newCust = await createCustomer({ 
+          name: customer.value.name, 
+          phone: customer.value.phone, 
+          email: customer.value.email 
         });
-        if (foundOrCreated && foundOrCreated.id) {
-          customerId.value = foundOrCreated.id;
-          customer.value = {
-            name: foundOrCreated.name || customer.value.name,
-            phone: foundOrCreated.phone || customer.value.phone || "",
-            email: foundOrCreated.email || customer.value.email || "",
-          };
+        if (newCust && newCust.id) {
+          customerId.value = newCust.id;
         }
-      } catch (custErr) {
-        console.warn("⚠️ No se pudo procesar el cliente automáticamente:", custErr);
+      } catch (err) {
+        console.warn("No se pudo auto-crear el cliente", err);
       }
     }
 
@@ -724,13 +751,13 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
 
     const patchPayload = {
       ...totals.value,
-      discount: totals.value.discount_total,
-      discount_percent: discountPercent.value,
       customer_id: customerId.value,
       customer_name: customer.value.name,
       customer_phone: customer.value.phone,
       customer_email: customer.value.email,
       payment_method: paymentMethod.value || null,
+      apply_tax: applyTax.value,
+      is_gym: isGym.value,
       amount_received: amountReceived.value,
       change_given: changeGiven.value,
     };
@@ -741,9 +768,9 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
     } catch (patchErr) {
       // Reintentar descartando columnas que podrían no existir en schemas anteriores
       const fallbackPayload = { ...patchPayload };
-      delete fallbackPayload.discount_percent;
       delete fallbackPayload.amount_received;
       delete fallbackPayload.change_given;
+      delete fallbackPayload.is_gym;
       try {
         updated = await patchOrder(orderId, fallbackPayload);
       } catch (secondErr) {
@@ -867,38 +894,6 @@ const handleCancelar = async () => {
         showSuccess("Venta cancelada");
         drawerVisible.value = false;
         queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
-      } catch (err) {
-        handleError(err);
-      } finally {
-        isSaving.value = false;
-      }
-    },
-  });
-};
-
-const confirmDeleteOffer = (order) => {
-  if (!order || !order.id) return;
-  if (order.status !== "draft") {
-    showWarning("Solo se pueden eliminar ofertas en borrador.");
-    return;
-  }
-
-  confirm.require({
-    message: "¿Estás seguro de que deseas eliminar esta oferta?",
-    header: "Confirmar Eliminación",
-    icon: "pi pi-exclamation-triangle",
-    acceptLabel: "Sí, eliminar",
-    rejectLabel: "Cancelar",
-    acceptClass: "p-button-danger",
-    accept: async () => {
-      try {
-        isSaving.value = true;
-        await deleteOrder(order.id);
-        showSuccess("Oferta eliminada correctamente.");
-        if (drawerVisible.value && currentOrder.value?.id === order.id) {
-          drawerVisible.value = false;
-        }
-        await queryClient.invalidateQueries({ queryKey: ["sales-offers"] });
       } catch (err) {
         handleError(err);
       } finally {

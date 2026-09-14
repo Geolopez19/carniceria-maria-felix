@@ -28,24 +28,26 @@ const routes = [
       },
       {
         path: 'ventas',
-        redirect: '/ventas/ofertas',
-        children: [
-          {
-            path: 'ofertas',
-            name: 'VentasOfertas',
-            component: () => import('../pages/VentasOfertas.vue')
-          },
-          {
-            path: 'facturas',
-            name: 'VentasFacturas',
-            component: () => import('../pages/VentasFacturas.vue')
-          },
-          {
-            path: 'clientes',
-            name: 'Clientes',
-            component: () => import('../pages/Clientes.vue')
-          }
-        ]
+        redirect: '/ventas/ofertas'
+      },
+      {
+        path: 'ventas/ofertas',
+        name: 'VentasOfertas',
+        component: () => import('../pages/VentasOfertas.vue')
+      },
+      {
+        path: 'ventas/facturas',
+        name: 'VentasFacturas',
+        component: () => import('../pages/VentasFacturas.vue')
+      },
+      {
+        path: 'ventas/clientes',
+        name: 'Clientes',
+        component: () => import('../pages/Clientes.vue')
+      },
+      {
+        path: 'clientes',
+        redirect: '/ventas/clientes'
       },
       {
         path: 'apartados',
@@ -82,17 +84,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-
-
   try {
     const { data: { session } } = await supabase.auth.getSession()
+    const requiresAuth = to.matched.some(record => record.meta?.requiresAuth)
 
-
-    if (to.meta.requiresAuth && !session) {
-
+    if (requiresAuth && !session) {
       next('/login')
     } else if (to.path === '/login' && session && !to.query.recovery) {
-
       next('/')
     } else {
       next()
@@ -101,6 +99,12 @@ router.beforeEach(async (to, from, next) => {
     console.error('Error en router guard:', error)
     next('/login')
   }
+})
+
+router.afterEach(() => {
+  // Limpiar posibles bloqueos de scroll residuales
+  document.body.classList.remove('p-overflow-hidden', 'overflow-hidden')
+  document.body.style.overflow = ''
 })
 
 export default router

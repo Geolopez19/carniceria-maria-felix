@@ -25,7 +25,27 @@ export async function createDraftOrder() {
 
 export async function upsertItems(items) {
   const supabase = getActiveSupabase()
-  const clean = items.map(i => ({ id: i.id, order_id: i.order_id, product_id: i.product_id, product_name: i.product_name, qty: i.qty, unit_price: i.unit_price, discount: i.discount || 0, tax_rate: i.tax_rate || 0, line_total: i.line_total, package_id: i.package_id || null }))
+  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+
+  const clean = items.map(i => {
+    const itemData = {
+      order_id: i.order_id,
+      product_id: i.product_id,
+      product_name: i.product_name,
+      qty: i.qty,
+      unit_price: i.unit_price,
+      discount: i.discount || 0,
+      tax_rate: i.tax_rate || 0,
+      line_total: i.line_total
+    }
+    if (i.id) itemData.id = i.id;
+    // Solo enviar package_id en el esquema carnicería / public
+    if (!isMotoTech) {
+      itemData.package_id = i.package_id || null
+    }
+    return itemData
+  })
+
   const { data, error } = await supabase.from('sales_order_items').upsert(clean).select()
   if (error) throw error
   return data

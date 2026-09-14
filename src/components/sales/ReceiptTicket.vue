@@ -4,14 +4,14 @@
     <!-- Header -->
     <div class="text-center mb-3">
       <!-- Logo -->
-      <div class="flex justify-center mb-2">
+      <div class="flex justify-center mb-2" v-if="activeLogo">
         <img 
-          src="/logo.png" 
+          :src="activeLogo" 
           alt="Logo" 
           class="receipt-logo w-[58mm] max-w-[85%] h-auto object-contain mx-auto" 
         />
       </div>
-      <h2 class="text-base font-extrabold uppercase tracking-wide mb-1">{{ business?.name || 'Carnicería María Félix' }}</h2>
+      <h2 class="text-base font-extrabold uppercase tracking-wide mb-1">{{ businessName }}</h2>
       <p v-if="business?.ruc" class="text-xs font-semibold text-black">R.U.C: {{ business.ruc }}</p>
       <p v-if="business?.address" class="text-xs text-black">{{ business.address }}</p>
       <p v-if="business?.phone" class="text-xs text-black">Tel: {{ business.phone }}</p>
@@ -69,14 +69,34 @@
 
     <!-- Totals -->
     <div class="mb-4 text-xs space-y-1">
-      <div class="flex justify-between">
+      <div class="flex justify-between" v-if="totalQuantity > 0">
+        <span>{{ isMotoTech ? 'Total Artículos:' : 'Total Libras:' }}</span>
+        <span class="font-bold">{{ Number(totalQuantity.toFixed(2)) }}</span>
+      </div>
+      
+      <div class="flex justify-between" v-if="order?.is_gym">
+        <span>Precio regular (con IVA):</span>
+        <span class="font-bold">{{ formatCurrency(totalAmount * 1.15) }}</span>
+      </div>
+      <div class="flex justify-between" v-else>
         <span>Subtotal:</span>
         <span class="font-bold">{{ formatCurrency(totalAmount) }}</span>
       </div>
-      <div class="flex justify-between" v-if="discountAmount > 0 || discountPercent > 0">
-        <span>Descuento{{ discountPercent > 0 ? ` (${discountPercent}%)` : '' }}:</span>
-        <span class="font-bold">-{{ formatCurrency(discountAmount) }}</span>
+
+      <div class="flex justify-between" v-if="order?.discount > 0">
+        <span>Descuento:</span>
+        <span class="font-bold">-{{ formatCurrency(order.discount) }}</span>
       </div>
+
+      <div class="flex justify-between" v-if="order?.is_gym">
+        <span>Beneficio Gym:</span>
+        <span class="font-bold">-{{ formatCurrency(totalAmount * 0.15) }}</span>
+      </div>
+      <div class="flex justify-between" v-else-if="(order?.tax_total || 0) > 0">
+        <span>IVA:</span>
+        <span class="font-bold">{{ formatCurrency(order.tax_total) }}</span>
+      </div>
+      
       <div class="flex justify-between font-extrabold text-base mt-2 border-t-2 border-dashed border-black pt-2">
         <span>TOTAL:</span>
         <span>{{ formatCurrency(order?.total || 0) }}</span>
@@ -107,6 +127,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useCompanyStore } from '../../stores/companyStore'
+
+const companyStore = useCompanyStore()
 
 const props = defineProps({
   order: {
@@ -123,17 +146,28 @@ const props = defineProps({
   }
 })
 
+const isMotoTech = computed(() => {
+  return companyStore.isMotoTech || localStorage.getItem('active_company_id') === 'mototech'
+})
+
+const activeLogo = computed(() => {
+  if (props.business?.logo) return props.business.logo
+  return isMotoTech.value ? '/mototech_logo.png' : '/logo.png'
+})
+
+const businessName = computed(() => {
+  if (props.business?.name) return props.business.name
+  return isMotoTech.value ? 'JyG MotoTech' : 'Carnicería María Félix'
+})
+
 const totalAmount = computed(() => {
   if (!props.items) return 0
   return props.items.reduce((sum, item) => sum + (item.qty * item.unit_price), 0)
 })
 
-const discountAmount = computed(() => {
-  return Number(props.order?.discount_total || props.order?.discount || 0)
-})
-
-const discountPercent = computed(() => {
-  return Number(props.order?.discount_percent || 0)
+const totalQuantity = computed(() => {
+  if (!props.items) return 0
+  return props.items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
 })
 
 const formatCurrency = (value) => {

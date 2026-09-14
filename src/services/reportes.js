@@ -1,12 +1,21 @@
 import { supabase } from '../lib/supabaseClient'
+import { useCompanyStore } from '../stores/companyStore'
+
+const getClient = () => {
+  const store = useCompanyStore()
+  return store.getClient()
+}
 
 export async function getVentasPorFecha(fechaInicio, fechaFin) {
-  let query = supabase
+  const store = useCompanyStore()
+  const client = getClient()
+
+  let query = client
     .from('sales_orders')
     .select('*')
     .eq('status', 'paid')
   
-  const { data: testData } = await supabase
+  const { data: testData } = await client
     .from('sales_orders')
     .select('paid_at')
     .eq('status', 'paid')
@@ -21,13 +30,47 @@ export async function getVentasPorFecha(fechaInicio, fechaFin) {
   }
   
   const { data, error } = await query
-  
   if (error) throw error
-  return data || []
+  
+  const ventas = [...(data || [])]
+
+  // En MotoTech, incluir los ingresos reales cobrados por Primas y Abonos de apartados
+  if (store.isMotoTech) {
+    try {
+      const { data: abonos, error: abonoErr } = await client
+        .from('apartados_abonos')
+        .select('*, apartado:apartados(customer_name, codigo_apartado)')
+        .gte('created_at', fechaInicio)
+        .lte('created_at', fechaFin)
+        .order('created_at', { ascending: false })
+
+      if (!abonoErr && abonos?.length > 0) {
+        abonos.forEach(ab => {
+          ventas.push({
+            id: `abono-${ab.id}`,
+            customer_name: `${ab.apartado?.customer_name || 'Cliente'} (Abono #${ab.numero_abono} - ${ab.apartado?.codigo_apartado || 'AP'})`,
+            status: 'paid',
+            total: Number(ab.monto || 0),
+            subtotal: Number(ab.monto || 0),
+            discount: 0,
+            tax: 0,
+            paid_at: ab.created_at,
+            created_at: ab.created_at,
+            payment_method: ab.payment_method || 'efectivo',
+            is_abono: true
+          })
+        })
+      }
+    } catch (e) {
+      console.warn('Advertencia al consultar abonos para reportes:', e)
+    }
+  }
+
+  return ventas
 }
 
 export async function getComprasPorFecha(fechaInicio, fechaFin) {
-  const { data, error } = await supabase
+  const { data, error } = await getClient()
     .from('purchase_orders')
     .select('*')
     .eq('status', 'completed')
@@ -40,7 +83,10 @@ export async function getComprasPorFecha(fechaInicio, fechaFin) {
 }
 
 export async function getItemsVentasPorFecha(fechaInicio, fechaFin) {
-  const { data: testData } = await supabase
+  const store = useCompanyStore()
+  const client = getClient()
+
+  const { data: testData } = await client
     .from('sales_orders')
     .select('paid_at')
     .eq('status', 'paid')
@@ -48,7 +94,7 @@ export async function getItemsVentasPorFecha(fechaInicio, fechaFin) {
   
   const tienePaidAt = testData && testData.length > 0 && testData[0].paid_at
   
-  let ordersQuery = supabase
+  let ordersQuery = client
     .from('sales_orders')
     .select('id')
     .eq('status', 'paid')
@@ -60,24 +106,56 @@ export async function getItemsVentasPorFecha(fechaInicio, fechaFin) {
   }
   
   const { data: orders, error: ordersError } = await ordersQuery
-  
   if (ordersError) throw ordersError
   
-  if (!orders || orders.length === 0) return []
+  let allItems = []
+
+  if (orders && orders.length > 0) {
+    const orderIds = orders.map(o => o.id)
+    const { data, error } = await client
+      .from('sales_order_items')
+      .select('*')
+      .in('order_id', orderIds)
+    
+    if (error) throw error
+    allItems = [...(data || [])]
+  }
+
+  // En MotoTech, incluir los items de apartados creados en este período
+  if (store.isMotoTech) {
+    try {
+      const { data: apts } = await client
+        .from('apartados')
+        .select('id, created_at, items:apartados_items(*)')
+        .gte('created_at', fechaInicio)
+        .lte('created_at', fechaFin)
+        .neq('status', 'cancelado')
+
+      if (apts?.length > 0) {
+        apts.forEach(apt => {
+          if (apt.items?.length > 0) {
+            apt.items.forEach(it => {
+              allItems.push({
+                product_id: it.product_id,
+                product_name: it.product_name,
+                qty: Number(it.qty || 1),
+                unit_price: Number(it.unit_price || 0),
+                line_total: Number(it.line_total || 0)
+              })
+            })
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('Advertencia al consultar items de apartados para estadísticas:', e)
+    }
+  }
   
-  const orderIds = orders.map(o => o.id)
-  
-  const { data, error } = await supabase
-    .from('sales_order_items')
-    .select('*')
-    .in('order_id', orderIds)
-  
-  if (error) throw error
-  return data || []
+  return allItems
 }
 
 export async function getItemsComprasPorFecha(fechaInicio, fechaFin) {
-  const { data: purchases, error: purchasesError } = await supabase
+  const { data: purchases, error: purchasesError } = await getClient()
     .from('purchase_orders')
     .select('id')
     .eq('status', 'completed')
@@ -90,7 +168,7 @@ export async function getItemsComprasPorFecha(fechaInicio, fechaFin) {
   
   const purchaseIds = purchases.map(p => p.id)
   
-  const { data, error } = await supabase
+  const { data, error } = await getClient()
     .from('purchase_order_items')
     .select('*')
     .in('purchase_id', purchaseIds)
@@ -100,7 +178,7 @@ export async function getItemsComprasPorFecha(fechaInicio, fechaFin) {
 }
 
 export async function getProductosStockBajo(umbral = 10) {
-  const { data, error } = await supabase
+  const { data, error } = await getClient()
     .from('productos')
     .select('*')
     .lte('stock', umbral)
@@ -112,7 +190,7 @@ export async function getProductosStockBajo(umbral = 10) {
 
 export async function getResumenFinanciero(fechaInicio, fechaFin) {
   try {
-    const { data: rpcData, error: rpcError } = await supabase.rpc('get_reportes_completos', {
+    const { data: rpcData, error: rpcError } = await getClient().rpc('get_reportes_completos', {
       p_fecha_inicio: fechaInicio,
       p_fecha_fin: fechaFin
     })
@@ -152,7 +230,7 @@ export async function getResumenFinanciero(fechaInicio, fechaFin) {
 export async function getReportesCompletos(fechaInicio, fechaFin) {
   // Intentar usar RPC primero
   try {
-    const { data, error } = await supabase.rpc('get_reportes_completos', {
+    const { data, error } = await getClient().rpc('get_reportes_completos', {
       p_fecha_inicio: fechaInicio,
       p_fecha_fin: fechaFin
     })

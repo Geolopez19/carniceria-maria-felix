@@ -4,42 +4,91 @@ export function normalizeCedula(n) {
   return (n || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+const getCustomersTable = () => {
+  const activeCompany = localStorage.getItem('active_company_id') || 'carniceria'
+  return activeCompany === 'mototech' ? 'clientes' : 'customers'
+}
+
 export async function searchCustomers(q, limit = 8) {
   const supabase = getActiveSupabase()
-  let query = supabase.from('customers').select('id,name,phone,email,address,national_id').limit(limit)
+  const table = getCustomersTable()
+  const isMoto = (table === 'clientes')
+
+  let query = isMoto 
+    ? supabase.from(table).select('id,nombre,telefono,email,direccion').limit(limit)
+    : supabase.from(table).select('id,name,phone,email,address,national_id').limit(limit)
+
   if (q && q.trim()) {
-    const s = q.trim()
-    query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,national_id.ilike.%${s}%`)
+    const s = q.trim().replace(/"/g, '')
+    if (isMoto) {
+      query = query.or(`nombre.ilike."%${s}%",email.ilike."%${s}%",telefono.ilike."%${s}%"`)
+    } else {
+      query = query.or(`name.ilike."%${s}%",email.ilike."%${s}%",phone.ilike."%${s}%",national_id.ilike."%${s}%"`)
+    }
   }
   const { data, error } = await query
   if (error) throw error
-  return data || []
+
+  // Normalizar estructura devuelta
+  return (data || []).map(c => ({
+    id: c.id,
+    name: c.nombre || c.name || '',
+    phone: c.telefono || c.phone || '',
+    email: c.email || '',
+    address: c.direccion || c.address || '',
+    national_id: c.national_id || ''
+  }))
 }
 
 export async function listCustomers() {
   const supabase = getActiveSupabase()
+  const table = getCustomersTable()
   const { data, error } = await supabase
-    .from('customers')
+    .from(table)
     .select('*')
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data || []
+
+  return (data || []).map(c => ({
+    id: c.id,
+    name: c.nombre || c.name || '',
+    phone: c.telefono || c.phone || '',
+    email: c.email || '',
+    address: c.direccion || c.address || '',
+    national_id: c.national_id || '',
+    created_at: c.created_at
+  }))
 }
 
 export async function getCustomer(id) {
   const supabase = getActiveSupabase()
+  const table = getCustomersTable()
+  const isMoto = (table === 'clientes')
+
   const { data, error } = await supabase
-    .from('customers')
-    .select('id,name,phone,email,address,national_id')
+    .from(table)
+    .select('*')
     .eq('id', id)
     .single()
   if (error) throw error
-  return data
+  if (!data) return null
+
+  return {
+    id: data.id,
+    name: data.nombre || data.name || '',
+    phone: data.telefono || data.phone || '',
+    email: data.email || '',
+    address: data.direccion || data.address || '',
+    national_id: data.national_id || ''
+  }
 }
 
 export async function createCustomer({ name, national_id, phone, email, address }) {
   const supabase = getActiveSupabase()
-  if (national_id) {
+  const table = getCustomersTable()
+  const isMoto = (table === 'clientes')
+
+  if (national_id && !isMoto) {
     const nid = normalizeCedula(national_id)
     const { data: dup, error: e1 } = await supabase
       .from('customers')
@@ -53,9 +102,22 @@ export async function createCustomer({ name, national_id, phone, email, address 
     }
   }
 
+  const payload = isMoto ? {
+    nombre: name?.trim(),
+    telefono: phone?.trim() || null,
+    email: email?.trim() || null,
+    direccion: address?.trim() || null
+  } : {
+    name: name?.trim(),
+    national_id: national_id?.trim() || null,
+    phone: phone?.trim() || null,
+    email: email?.trim() || null,
+    address: address?.trim() || null
+  }
+
   const { data, error } = await supabase
-    .from('customers')
-    .insert({ name, national_id, phone, email, address })
+    .from(table)
+    .insert(payload)
     .select()
     .single()
 
@@ -67,14 +129,23 @@ export async function createCustomer({ name, national_id, phone, email, address 
     }
     throw error
   }
-  return data
+  return {
+    id: data.id,
+    name: data.nombre || data.name || '',
+    phone: data.telefono || data.phone || '',
+    email: data.email || '',
+    address: data.direccion || data.address || '',
+    national_id: data.national_id || ''
+  }
 }
 
 export async function updateCustomer(id, { name, national_id, phone, email, address }) {
   if (!id) throw new Error('ID no válido para actualización')
   const supabase = getActiveSupabase()
+  const table = getCustomersTable()
+  const isMoto = (table === 'clientes')
 
-  if (national_id) {
+  if (national_id && !isMoto) {
     const nid = normalizeCedula(national_id)
     const { data: dup, error: e1 } = await supabase
       .from('customers')
@@ -89,15 +160,22 @@ export async function updateCustomer(id, { name, national_id, phone, email, addr
     }
   }
 
+  const payload = isMoto ? {
+    nombre: name?.trim(),
+    telefono: phone?.trim() || null,
+    email: email?.trim() || null,
+    direccion: address?.trim() || null
+  } : {
+    name: name?.trim(),
+    national_id: national_id?.trim() || null,
+    phone: phone?.trim() || null,
+    email: email?.trim() || null,
+    address: address?.trim() || null
+  }
+
   const { data, error } = await supabase
-    .from('customers')
-    .update({
-      name: name?.trim(),
-      national_id: national_id?.trim() || null,
-      phone: phone?.trim() || null,
-      email: email?.trim() || null,
-      address: address?.trim() || null
-    })
+    .from(table)
+    .update(payload)
     .eq('id', id)
     .select()
     .single()
@@ -110,15 +188,23 @@ export async function updateCustomer(id, { name, national_id, phone, email, addr
     }
     throw error
   }
-  return data
+  return {
+    id: data.id,
+    name: data.nombre || data.name || '',
+    phone: data.telefono || data.phone || '',
+    email: data.email || '',
+    address: data.direccion || data.address || '',
+    national_id: data.national_id || ''
+  }
 }
 
 export async function deleteCustomer(id) {
   if (!id) throw new Error('ID no válido para eliminación')
   const supabase = getActiveSupabase()
+  const table = getCustomersTable()
 
   const { error } = await supabase
-    .from('customers')
+    .from(table)
     .delete()
     .eq('id', id)
 

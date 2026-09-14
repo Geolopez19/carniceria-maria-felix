@@ -1,20 +1,28 @@
 import { getActiveSupabase } from '../lib/supabaseClient'
 
 export async function searchSuppliers(q, limit = 100) {
-  const supabase = getActiveSupabase()
-  let query = supabase
-    .from('suppliers')
-    .select('id,name,phone,email,address')
-    .limit(limit)
-  
-  if (q && q.trim()) {
-    const s = q.trim()
-    query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`)
+  try {
+    const supabase = getActiveSupabase()
+    let query = supabase
+      .from('suppliers')
+      .select('id,name,phone,email,address')
+      .limit(limit)
+    
+    if (q && q.trim()) {
+      const s = q.trim().replace(/"/g, '')
+      query = query.or(`name.ilike."%${s}%",email.ilike."%${s}%",phone.ilike."%${s}%"`)
+    }
+    
+    const { data, error } = await query
+    if (error) {
+      console.warn('Error al buscar proveedores:', error)
+      return []
+    }
+    return data || []
+  } catch (err) {
+    console.warn('Error en searchSuppliers:', err)
+    return []
   }
-  
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
 }
 
 export async function getSupplier(id) {

@@ -131,13 +131,39 @@
       </template>
 
       <div class="flex flex-col h-full bg-gradient-to-b from-slate-50 to-white">
-        <div class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-8 space-y-4 md:space-y-8 custom-scrollbar">
-          <!-- Componente de Proveedor -->
-          <PurchaseSupplierForm
-            v-model="supplier"
-            :readOnly="readOnly"
-            @select="(s) => supplierId = s.id"
-          />
+        <div class="flex-1 overflow-y-auto p-3 sm:p-5 md:p-8 space-y-4 md:space-y-6 custom-scrollbar">
+          <!-- Fecha de la Compra y Proveedor -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Selector de Fecha de Compra -->
+            <div class="bg-white rounded-xl shadow-md border border-indigo-200 p-4 flex flex-col justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <div class="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+                  <i class="pi pi-calendar text-lg"></i>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-800 uppercase tracking-wider block">Fecha de Compra</label>
+                  <span class="text-[11px] text-slate-400">Fecha del abastecimiento o factura</span>
+                </div>
+              </div>
+              <DatePicker 
+                v-model="purchaseDate" 
+                dateFormat="dd/mm/yy" 
+                showIcon 
+                :disabled="readOnly"
+                class="w-full text-sm mt-1"
+                placeholder="Seleccionar fecha"
+              />
+            </div>
+
+            <!-- Componente de Proveedor -->
+            <div class="lg:col-span-2">
+              <PurchaseSupplierForm
+                v-model="supplier"
+                :readOnly="readOnly"
+                @select="(s) => supplierId = s.id"
+              />
+            </div>
+          </div>
 
           <!-- Componente de Tabla de Items -->
           <PurchaseItemsTable
@@ -145,7 +171,7 @@
             :readOnly="readOnly"
           />
 
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
             <!-- Notas -->
             <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
                <div class="bg-slate-50 px-5 py-3 border-b border-slate-200 flex items-center gap-2">
@@ -176,7 +202,8 @@
               icon="pi pi-save" 
               class="bg-indigo-600 text-white hover:bg-indigo-700 border-0 shadow-md py-2 px-6 rounded-xl font-bold"
               :loading="isSaving" 
-              @click.prevent="savePurchase" 
+              :disabled="isSaving"
+              @click.prevent="() => savePurchase()" 
               :pt="{
                   label: { class: 'text-white' },
                   icon: { class: 'text-white' }
@@ -189,6 +216,7 @@
               severity="success" 
               class="shadow-md py-2 px-6 rounded-xl font-bold"
               :loading="isSaving" 
+              :disabled="isSaving"
               @click.prevent="confirmFinalize" 
             />
             <Button 
@@ -197,6 +225,7 @@
               severity="danger" 
               text 
               rounded
+              :disabled="isSaving"
               class="hover:bg-red-50"
               @click.prevent="confirmDeletePurchase" 
               v-tooltip.top="'Eliminar borrador'"
@@ -254,6 +283,7 @@ import Drawer from 'primevue/drawer'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
+import DatePicker from 'primevue/datepicker'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Tooltip from 'primevue/tooltip'
 
@@ -292,6 +322,7 @@ const currentPurchase = ref(null)
 const items = ref([])
 const supplier = ref({ name: '', phone: '', email: '' })
 const supplierId = ref(null)
+const purchaseDate = ref(new Date())
 const notes = ref('')
 const isSaving = ref(false)
 
@@ -316,6 +347,7 @@ const createPurchase = () => {
   items.value = []
   supplier.value = { name: '', phone: '', email: '' }
   supplierId.value = null
+  purchaseDate.value = new Date()
   notes.value = ''
   drawerVisible.value = true
 }
@@ -329,6 +361,7 @@ const openPurchase = async (p) => {
       phone: p.supplier_phone || '', 
       email: p.supplier_email || '' 
     }
+    purchaseDate.value = p.completed_at ? new Date(p.completed_at) : (p.created_at ? new Date(p.created_at) : new Date())
     notes.value = p.notes || ''
     drawerVisible.value = true
     
@@ -340,15 +373,18 @@ const openPurchase = async (p) => {
   }
 }
 
-const savePurchase = async () => {
-  if (!supplier.value.name) {
-    showWarning('Selecciona un proveedor')
+const savePurchase = async (options = {}) => {
+  const silent = typeof options === 'boolean' ? options : (options && typeof options === 'object' && options.silent === true)
+
+  if (!supplier.value?.name || !supplier.value.name.trim()) {
+    showWarning('Selecciona o ingresa un proveedor')
     return false
   }
   
   try {
     isSaving.value = true
-    let purchaseId = currentPurchase.value.id
+    let purchaseId = currentPurchase.value?.id
+    const customDateIso = purchaseDate.value ? new Date(purchaseDate.value).toISOString() : new Date().toISOString()
     
     if (!purchaseId) {
       const created = await createDraftPurchase()
@@ -364,22 +400,29 @@ const savePurchase = async () => {
       supplier_name: supplier.value.name,
       supplier_phone: supplier.value.phone,
       supplier_email: supplier.value.email,
+      created_at: customDateIso,
       notes: notes.value
     })
     
     currentPurchase.value = updated
-    showSuccess('Compra guardada correctamente')
+    if (!silent) {
+      showSuccess('Compra guardada correctamente')
+    }
     queryClient.invalidateQueries({ queryKey: ['purchases'] })
     return true
   } catch (err) {
-    handleError(err)
+    handleError(err, 'Error al guardar la compra')
     return false
   } finally {
-    isSaving.value = false
+    if (!silent) {
+      isSaving.value = false
+    }
   }
 }
 
 const confirmFinalize = () => {
+  if (isSaving.value) return
+
   confirm.require({
     message: '¿Deseas completar la compra? Esto actualizará el stock de los productos.',
     header: 'Confirmar Abastecimiento',
@@ -387,15 +430,22 @@ const confirmFinalize = () => {
     acceptLabel: 'Sí, finalizar ingreso',
     rejectLabel: 'Cancelar',
     accept: async () => {
+      if (isSaving.value) return
       try {
         isSaving.value = true
-        const saved = await savePurchase()
-        if (!saved) return
+        const saved = await savePurchase(true)
+        if (!saved) {
+          isSaving.value = false
+          return
+        }
 
-        await finalizePurchase(currentPurchase.value.id, items.value)
+        const customDateIso = purchaseDate.value ? new Date(purchaseDate.value).toISOString() : new Date().toISOString()
+        await finalizePurchase(currentPurchase.value.id, items.value, customDateIso)
         currentPurchase.value.status = 'completed'
         showSuccess('Abastecimiento completado exitosamente')
         queryClient.invalidateQueries({ queryKey: ['purchases'] })
+        queryClient.invalidateQueries({ queryKey: ['productos'] })
+        queryClient.invalidateQueries({ queryKey: ['inventario'] })
       } catch (err) {
         handleError(err)
       } finally {
@@ -419,6 +469,8 @@ const revertToDraft = () => {
         currentPurchase.value = updated
         showSuccess('La compra ahora es un borrador y puede ser editada')
         queryClient.invalidateQueries({ queryKey: ['purchases'] })
+        queryClient.invalidateQueries({ queryKey: ['productos'] })
+        queryClient.invalidateQueries({ queryKey: ['inventario'] })
       } catch (err) {
         handleError(err)
       }

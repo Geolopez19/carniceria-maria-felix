@@ -16,7 +16,7 @@
       <Button
         type="button"
         v-if="!readOnly"
-        label="Buscar Lista"
+        label="Buscar"
         icon="pi pi-search"
         size="small"
         @click.prevent="showCustomerModal = true"
@@ -26,36 +26,31 @@
     </div>
     <div class="p-3 sm:p-4 bg-white">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-        <!-- Campo Nombre Completo con Autocompletado Integrado -->
         <div class="flex flex-col gap-1.5">
           <label
             class="text-xs font-bold text-indigo-600 flex items-center gap-1.5"
           >
             <i class="pi pi-user text-xs"></i>
-            Nombre Completo (Buscar o Nuevo)
+            Nombre Completo
           </label>
           <AutoComplete
-            v-model="customerNameInput"
-            :suggestions="suggestions"
+            v-model="internalCustomer.name"
+            :suggestions="foundCustomers"
+            @complete="onCustomerSearchAutoComplete"
+            @item-select="onCustomerSelectAutoComplete"
             optionLabel="name"
             :disabled="readOnly"
-            placeholder="Escribe para buscar cliente existente..."
-            class="w-full text-sm"
-            inputClass="p-2 text-sm w-full font-medium"
-            @complete="handleCustomerSearch"
-            @option-select="handleOptionSelect"
-            @input="handleNameInput"
-            @clear="handleClear"
-            fluid
+            placeholder="Nombre del cliente"
+            class="w-full"
+            :inputProps="{ class: 'p-2 text-sm w-full' }"
+            @change="emit('update:modelValue', internalCustomer)"
+            @input="onNameInput"
           >
-            <template #option="{ option }">
-              <div class="flex flex-col py-1">
-                <span class="font-bold text-slate-800 text-sm">{{ option.name }}</span>
-                <div class="text-xs text-slate-500 flex flex-wrap gap-3 mt-0.5" v-if="option.phone || option.email">
-                  <span v-if="option.phone"><i class="pi pi-phone text-[10px] text-indigo-500 mr-1"></i>{{ option.phone }}</span>
-                  <span v-if="option.email"><i class="pi pi-envelope text-[10px] text-indigo-500 mr-1"></i>{{ option.email }}</span>
+            <template #option="slotProps">
+                <div class="flex flex-col">
+                    <span class="font-bold">{{ slotProps.option.name }}</span>
+                    <span class="text-xs text-slate-500" v-if="slotProps.option.phone">{{ slotProps.option.phone }}</span>
                 </div>
-              </div>
             </template>
           </AutoComplete>
         </div>
@@ -71,7 +66,7 @@
             :disabled="readOnly"
             placeholder="Teléfono"
             class="p-2 text-sm w-full"
-            @input="onFieldInput"
+            @input="emit('update:modelValue', internalCustomer)"
           />
         </div>
         <div class="flex flex-col gap-1.5">
@@ -86,13 +81,13 @@
             :disabled="readOnly"
             placeholder="Email"
             class="p-2 text-sm w-full"
-            @input="onFieldInput"
+            @input="emit('update:modelValue', internalCustomer)"
           />
         </div>
       </div>
     </div>
 
-    <!-- Modal de Búsqueda Avanzada -->
+    <!-- Modal de Búsqueda -->
     <Dialog
       v-model:visible="showCustomerModal"
       modal
@@ -132,7 +127,7 @@
             <InputIcon class="pi pi-search text-indigo-500 z-10" />
             <InputText
               v-model="customerSearchText"
-              placeholder="Buscar por nombre, teléfono o email..."
+              placeholder="Buscar clie... (ej: Juan, 8888-8888)"
               class="w-full pl-10 py-3 text-lg bg-slate-50 border-0 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 rounded-xl transition-all shadow-sm"
               @input="onCustomerSearch"
               autofocus
@@ -240,7 +235,7 @@
       </div>
     </Dialog>
 
-    <!-- Modal de Creación Manual -->
+    <!-- Modal de Creación -->
     <Dialog 
         v-model:visible="showCreateModal" 
         modal 
@@ -315,14 +310,11 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "select"]);
 
 const internalCustomer = ref({ ...props.modelValue });
-const customerNameInput = ref(props.modelValue?.name || "");
-const suggestions = ref([]);
-
 const showCustomerModal = ref(false);
 const customerSearchText = ref("");
 const foundCustomers = ref([]);
 
-// State for manual creation
+// New state for creation
 const showCreateModal = ref(false);
 const newCustomer = ref({ name: '', phone: '', email: '', national_id: '', address: '' });
 const isCreating = ref(false);
@@ -331,58 +323,9 @@ watch(
   () => props.modelValue,
   (newVal) => {
     internalCustomer.value = { ...newVal };
-    if (typeof newVal?.name === 'string') {
-      customerNameInput.value = newVal.name;
-    }
   },
-  { deep: true, immediate: true }
+  { deep: true }
 );
-
-const handleCustomerSearch = async (event) => {
-  const query = event.query;
-  if (!query || query.trim().length < 1) {
-    suggestions.value = [];
-    return;
-  }
-  try {
-    suggestions.value = await searchCustomers(query.trim());
-  } catch (e) {
-    console.error(e);
-    suggestions.value = [];
-  }
-};
-
-const handleOptionSelect = (event) => {
-  const c = event.value;
-  if (!c) return;
-  internalCustomer.value = {
-    name: c.name,
-    phone: c.phone || "",
-    email: c.email || "",
-  };
-  customerNameInput.value = c.name;
-  emit("update:modelValue", internalCustomer.value);
-  emit("select", c);
-};
-
-const handleNameInput = (event) => {
-  const val = typeof event === 'string' ? event : (event?.target?.value ?? customerNameInput.value);
-  const nameVal = typeof val === 'string' ? val : (val?.name || '');
-  internalCustomer.value.name = nameVal;
-  emit("update:modelValue", internalCustomer.value);
-  emit("select", { id: null, ...internalCustomer.value });
-};
-
-const handleClear = () => {
-  internalCustomer.value = { name: "", phone: "", email: "" };
-  customerNameInput.value = "";
-  emit("update:modelValue", internalCustomer.value);
-  emit("select", { id: null, name: "", phone: "", email: "" });
-};
-
-const onFieldInput = () => {
-  emit("update:modelValue", internalCustomer.value);
-};
 
 const onCustomerSearch = async () => {
   if (customerSearchText.value.length < 2) return;
@@ -397,7 +340,6 @@ const selectCustomer = (e) => {
     phone: c.phone || "",
     email: c.email || "",
   };
-  customerNameInput.value = c.name;
   emit("update:modelValue", internalCustomer.value);
   emit("select", c);
   showCustomerModal.value = false;
@@ -405,12 +347,35 @@ const selectCustomer = (e) => {
   foundCustomers.value = [];
 };
 
+const onCustomerSearchAutoComplete = async (event) => {
+  if (event.query.length < 2) return;
+  foundCustomers.value = await searchCustomers(event.query);
+};
+
+const onCustomerSelectAutoComplete = (event) => {
+  const c = event.value;
+  if (!c) return;
+  internalCustomer.value = {
+    name: c.name,
+    phone: c.phone || "",
+    email: c.email || "",
+  };
+  emit("update:modelValue", internalCustomer.value);
+  emit("select", c);
+};
+
+const onNameInput = () => {
+  if (typeof internalCustomer.value.name === 'object' && internalCustomer.value.name !== null) {
+     internalCustomer.value.name = internalCustomer.value.name.name || "";
+  }
+  emit("update:modelValue", internalCustomer.value);
+};
+
 const openCreateModal = () => {
     newCustomer.value = { name: '', phone: '', email: '', national_id: '', address: '' };
+    // Pre-fill name if searched
     if (customerSearchText.value) {
         newCustomer.value.name = customerSearchText.value;
-    } else if (customerNameInput.value) {
-        newCustomer.value.name = customerNameInput.value;
     }
     showCreateModal.value = true;
 };
@@ -423,6 +388,7 @@ const handleCreateCustomer = async () => {
         const created = await createCustomer(newCustomer.value);
         showSuccess('Cliente creado exitosamente');
 
+        // Auto select
         selectCustomer(created);
 
         showCreateModal.value = false;

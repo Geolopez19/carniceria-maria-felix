@@ -28,16 +28,17 @@ export async function getUser(id) {
 
 export async function getUserByAuthId(authId) {
   if (!authId) return null
-  const { data, error } = await supabase.from('usuarios').select('*').eq('auth_id', authId).single()
+  const { data, error } = await supabase.schema('public').from('usuarios').select('*').eq('auth_id', authId).single()
   if (error) {
     if (error.code === 'PGRST116') {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { session } } = await supabase.auth.getSession()
+        const user = session?.user
         if (user?.email) {
-          const { data: userByEmail, error: emailError } = await supabase.from('usuarios').select('*').eq('email', user.email).single()
+          const { data: userByEmail, error: emailError } = await supabase.schema('public').from('usuarios').select('*').eq('email', user.email).single()
           if (!emailError && userByEmail) {
             if (!userByEmail.auth_id) {
-              await supabase.from('usuarios').update({ auth_id: authId }).eq('id', userByEmail.id)
+              await supabase.schema('public').from('usuarios').update({ auth_id: authId }).eq('id', userByEmail.id)
             }
             return userByEmail
           }
@@ -49,24 +50,25 @@ export async function getUserByAuthId(authId) {
   return data
 }
 
-export async function createUser({ email, password, nombre, rol, activo = true }) {
+export async function createUser({ email, password, nombre, rol, activo = true, empresas_autorizadas = ['carniceria'] }) {
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
   if (authError) throw authError
-  const { data, error } = await supabase.from('usuarios').insert({ auth_id: authData.user?.id || null, email, nombre, rol, activo }).select().single()
+  const { data, error } = await supabase.from('usuarios').insert({ auth_id: authData.user?.id || null, email, nombre, rol, activo, empresas_autorizadas }).select().single()
   if (error) throw error
   return data
 }
 
-export async function updateUser(id, { nombre, rol, activo, email }) {
+export async function updateUser(id, { nombre, rol, activo, email, empresas_autorizadas }) {
   if (rol !== undefined) {
     try {
-      const { data, error } = await supabase.rpc('update_user_role', { p_user_id: id, p_new_rol: rol, p_nombre: nombre || null, p_activo: activo !== undefined ? activo : null, p_email: email || null })
-      if (!error) return data
+      await supabase.rpc('update_user_role', { p_user_id: id, p_new_rol: rol, p_nombre: nombre || null, p_activo: activo !== undefined ? activo : null, p_email: email || null })
     } catch (rpcError) { console.warn(rpcError) }
   }
   const updates = { nombre, activo }
   if (email) updates.email = email
   if (rol !== undefined) updates.rol = rol
+  if (empresas_autorizadas !== undefined) updates.empresas_autorizadas = empresas_autorizadas
+  
   const { data, error } = await supabase.from('usuarios').update(updates).eq('id', id).select().single()
   if (error) throw error
   return data

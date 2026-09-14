@@ -269,9 +269,21 @@ watch(
   { deep: true }
 )
 
-const onSupplierSearch = async () => {
-  if (supplierSearchText.value.length < 2) return
-  foundSuppliers.value = await searchSuppliers(supplierSearchText.value)
+let searchTimeout = null
+const onSupplierSearch = () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(async () => {
+    if (supplierSearchText.value.trim().length < 2) {
+      foundSuppliers.value = []
+      return
+    }
+    try {
+      foundSuppliers.value = await searchSuppliers(supplierSearchText.value)
+    } catch (err) {
+      console.warn('Error en búsqueda de proveedores:', err)
+      foundSuppliers.value = []
+    }
+  }, 250)
 }
 
 const selectSupplier = (e) => {

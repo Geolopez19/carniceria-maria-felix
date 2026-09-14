@@ -57,17 +57,20 @@ export async function createDraftPurchase() {
 }
 
 export async function upsertPurchaseItems(items) {
-  // Intentar incluir columnas/metadatos de paquetes
+  if (!items || items.length === 0) return []
+  const supabase = getActiveSupabase()
+
+  // 1. Payload completo
   const fullPayload = items.map(i => ({
-    id: i.id,
+    id: i.id || crypto.randomUUID(),
     purchase_id: i.purchase_id,
     product_id: i.product_id,
     product_name: i.product_name,
-    qty: i.qty,
-    unit_cost: i.unit_cost,
-    line_total: i.line_total,
+    qty: Number(i.qty) || 1,
+    unit_cost: Number(i.unit_cost) || 0,
+    line_total: Number(i.line_total) || 0,
     tipo_ingreso: i.tipo_ingreso || 'granel',
-    peso_caja: i.peso_caja || null,
+    peso_caja: i.peso_caja ? Number(i.peso_caja) : null,
     codigo_lote: i.codigo_lote || null,
     paquetes_data: JSON.stringify({
       tipo_ingreso: i.tipo_ingreso || 'granel',
@@ -78,53 +81,91 @@ export async function upsertPurchaseItems(items) {
   }))
 
   try {
-    const supabase = getActiveSupabase()
     const { data, error } = await supabase
       .from('purchase_order_items')
       .upsert(fullPayload)
       .select()
 
-    if (!error) return data
+    if (!error && data) return data
+    if (error) {
+      console.warn('Upsert con metadatos falló, intentando con campos básicos:', error.message)
+    }
   } catch (err) {
-    console.warn('Upsert completo falló, usando campos estándar:', err.message)
+    console.warn('Excepción en upsert completo:', err.message)
   }
 
-  // Fallback con campos estándar si las columnas extras no existen en la BD aún
+  // 2. Fallback con campos básicos
   const cleanPayload = items.map(i => ({
-    id: i.id,
+    id: i.id || crypto.randomUUID(),
     purchase_id: i.purchase_id,
     product_id: i.product_id,
     product_name: i.product_name,
-    qty: i.qty,
-    unit_cost: i.unit_cost,
-    line_total: i.line_total
+    qty: Number(i.qty) || 1,
+    unit_cost: Number(i.unit_cost) || 0,
+    line_total: Number(i.line_total) || 0
   }))
 
-  const supabase = getActiveSupabase()
-  const { data, error } = await supabase
+  const { data: fallbackData, error: fallbackError } = await supabase
     .from('purchase_order_items')
     .upsert(cleanPayload)
     .select()
 
-  if (error) throw error
-  return data
+  if (fallbackError) {
+    console.error('Error final en upsertPurchaseItems:', fallbackError)
+    throw fallbackError
+  }
+  return fallbackData || []
 }
 
 export async function patchPurchase(purchaseId, patch) {
   const supabase = getActiveSupabase()
+  
+  // Filtrar solo campos existentes en purchase_orders para evitar error PGRST204
+  const allowed = ['supplier_id', 'supplier_name', 'status', 'total', 'completed_at', 'created_at', 'created_by']
+  const clean = {}
+  for (const k of allowed) {
+    if (patch[k] !== undefined) clean[k] = patch[k]
+  }
+
+  // Sanitizar supplier_id: debe ser un UUID válido o null
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!clean.supplier_id || typeof clean.supplier_id !== 'string' || !uuidRegex.test(clean.supplier_id.trim())) {
+    clean.supplier_id = null
+  } else {
+    clean.supplier_id = clean.supplier_id.trim()
+  }
+
   const { data, error } = await supabase
     .from('purchase_orders')
-    .update(patch)
+    .update(clean)
     .eq('id', purchaseId)
     .select()
     .single()
-  if (error) throw error
+    
+  if (error) {
+    console.error('Error en patchPurchase:', error)
+    throw error
+  }
   return data
 }
 
-export async function finalizePurchase(purchaseId, memoryItems = null) {
+export async function finalizePurchase(purchaseId, memoryItems = null, customDate = null) {
   try {
     const supabase = getActiveSupabase()
+
+    // 1. Candado de seguridad: verificar que no esté ya completada para evitar duplicar stock
+    const { data: currentOrder, error: checkError } = await supabase
+      .from('purchase_orders')
+      .select('id, status')
+      .eq('id', purchaseId)
+      .single()
+
+    if (checkError) throw checkError
+    if (currentOrder && currentOrder.status === 'completed') {
+      console.warn(`[compras] La orden ${purchaseId} ya fue finalizada previamente. Se previene duplicidad de stock.`)
+      return currentOrder
+    }
+
     // Si pasamos los items en memoria con su desglose de paquetes, los usamos prioritariamente
     let items = memoryItems
     if (!items || items.length === 0) {
@@ -194,19 +235,26 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
 
       } else {
         // Ingreso a Granel o por Pieza -> Cargar a stock
+        const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+        const selectQuery = isMotoTech ? 'id, nombre, stock' : 'id, nombre, stock, stock_granel'
+
         const { data: producto } = await supabase
           .from('productos')
-          .select('id, nombre, stock, stock_granel')
+          .select(selectQuery)
           .eq('id', item.product_id)
           .single()
 
         if (producto) {
-          const stockAnterior = producto.stock_granel || producto.stock || 0
+          const stockAnterior = isMotoTech ? Number(producto.stock || 0) : Number(producto.stock_granel || producto.stock || 0)
           const stockNuevo = stockAnterior + Number(item.qty)
+
+          const updatePayload = isMotoTech
+            ? { stock: stockNuevo }
+            : { stock_granel: stockNuevo, stock: stockNuevo }
 
           await supabase
             .from('productos')
-            .update({ stock_granel: stockNuevo, stock: stockNuevo })
+            .update(updatePayload)
             .eq('id', item.product_id)
 
           const { data: productoActualizado } = await supabase
@@ -229,9 +277,14 @@ export async function finalizePurchase(purchaseId, memoryItems = null) {
     }
 
     // Marcar compra como completada
+    const completedTimestamp = customDate ? new Date(customDate).toISOString() : new Date().toISOString()
     const { data, error } = await supabase
       .from('purchase_orders')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .update({ 
+        status: 'completed', 
+        completed_at: completedTimestamp,
+        created_at: completedTimestamp 
+      })
       .eq('id', purchaseId)
       .select()
       .single()
@@ -260,13 +313,15 @@ export async function deletePurchase(purchaseId) {
 
 export async function revertPurchaseToDraft(purchaseId) {
   const supabase = getActiveSupabase()
+  const isMotoTech = (localStorage.getItem('active_company_id') === 'mototech')
+  const selectQuery = isMotoTech ? 'id, nombre, stock' : 'id, nombre, stock, stock_granel'
   const items = await getPurchaseItems(purchaseId)
 
   for (const item of items) {
     if (item.product_id && item.qty > 0) {
       const { data: producto, error: prodError } = await supabase
         .from('productos')
-        .select('id, nombre, stock, stock_granel')
+        .select(selectQuery)
         .eq('id', item.product_id)
         .single()
 
@@ -275,14 +330,18 @@ export async function revertPurchaseToDraft(purchaseId) {
         continue
       }
 
-      const stockAnterior = Number(producto.stock_granel || producto.stock || 0)
+      const stockAnterior = isMotoTech ? Number(producto.stock || 0) : Number(producto.stock_granel || producto.stock || 0)
       const qty = Number(item.qty)
       const stockNuevo = Math.max(0, stockAnterior - qty)
 
       // Actualizar stock
+      const updatePayload = isMotoTech
+        ? { stock: stockNuevo }
+        : { stock_granel: stockNuevo, stock: stockNuevo }
+
       const { error: updateError } = await supabase
         .from('productos')
-        .update({ stock_granel: stockNuevo, stock: stockNuevo })
+        .update(updatePayload)
         .eq('id', item.product_id)
 
       if (updateError) {

@@ -14,8 +14,9 @@ export async function getProductos({
     .from('productos')
     .select('*', { count: 'exact' })
 
-  if (search) {
-    query = query.or(`nombre.ilike.%${search}%,codigo.ilike.%${search}%`)
+  if (search && search.trim()) {
+    const s = search.trim().replace(/"/g, '')
+    query = query.or(`nombre.ilike."%${s}%",codigo.ilike."%${s}%"`)
   }
 
   if (categoria) {
@@ -66,6 +67,8 @@ export async function addProducto(producto) {
     if (producto.talla !== undefined) payload.talla = producto.talla?.trim() || null
     if (producto.color !== undefined) payload.color = producto.color?.trim() || null
     if (producto.codigo_barra !== undefined) payload.codigo_barra = producto.codigo_barra?.trim() || null
+    if (producto.costo !== undefined) payload.costo = Number(producto.costo || 0)
+    if (producto.precio_taller !== undefined) payload.precio_taller = Number(producto.precio_taller || 0)
   }
   if (producto.stock !== undefined) payload.stock = stockInicial
   if (!isMotoTech) {
@@ -151,6 +154,8 @@ export async function updateProducto(id, producto) {
     if (producto.talla !== undefined) payload.talla = producto.talla?.trim() || null
     if (producto.color !== undefined) payload.color = producto.color?.trim() || null
     if (producto.codigo_barra !== undefined) payload.codigo_barra = producto.codigo_barra?.trim() || null
+    if (producto.costo !== undefined) payload.costo = Number(producto.costo || 0)
+    if (producto.precio_taller !== undefined) payload.precio_taller = Number(producto.precio_taller || 0)
   }
 
   const { data, error } = await supabase

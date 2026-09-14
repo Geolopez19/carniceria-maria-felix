@@ -19,10 +19,11 @@ export const useBusinessStore = defineStore('business', () => {
         email: 'contacto@jygmototech.com',
         website: 'https://www.jygmototech.com',
         ruc: '',
-        currency: 'C$'
+        currency: 'C$',
+        logo: '/mototech_logo.png'
       }
     }
-    return { ...defaultSettings }
+    return { ...defaultSettings, logo: '/logo.png' }
   }
 
   // Mapping to/from database snake_case to app camelCase
@@ -33,7 +34,8 @@ export const useBusinessStore = defineStore('business', () => {
     email: data.email,
     website: data.website,
     ruc: data.ruc,
-    currency: data.currency
+    currency: data.currency,
+    logo: data.logo_url || data.logo || (companyStore.isMotoTech ? '/mototech_logo.png' : '/logo.png')
   })
 
   const mapToDb = (data) => ({

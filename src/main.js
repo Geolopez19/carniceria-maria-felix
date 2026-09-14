@@ -19,7 +19,17 @@ try {
 
   app.use(createPinia())
   app.use(router)
-  app.use(VueQueryPlugin)
+  app.use(VueQueryPlugin, {
+    queryClientConfig: {
+      defaultOptions: {
+        queries: {
+          refetchOnWindowFocus: false,
+          retry: 1,
+          staleTime: 1000 * 60 * 5 // 5 minutos de cache fresco
+        }
+      }
+    }
+  })
   app.use(PrimeVue, {
     theme: {
       preset: Aura,

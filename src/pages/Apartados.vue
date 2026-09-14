@@ -169,6 +169,17 @@
         <Column header="Acciones" style="width: 160px" class="text-right">
           <template #body="{ data }">
             <div class="flex gap-1 justify-end">
+              <!-- Botón Editar Apartado -->
+              <Button
+                v-if="data.status === 'activo' || data.status === 'liquidado'"
+                icon="pi pi-pencil"
+                severity="warn"
+                text
+                rounded
+                @click="openEditarModal(data)"
+                title="Editar Apartado / Modificar Cascos"
+              />
+
               <!-- Botón Abonar -->
               <Button
                 v-if="data.status === 'activo'"
@@ -217,12 +228,12 @@
       </DataTable>
     </div>
 
-    <!-- MODAL 1: NUEVO APARTADO -->
+    <!-- MODAL 1: NUEVO / EDITAR APARTADO -->
     <Dialog
       v-model:visible="nuevoModalVisible"
-      header="Crear Nuevo Apartado de Casco / Accesorio"
+      :header="isEditMode ? ('Editar Apartado ' + (editingApartado?.codigo_apartado || '')) : 'Crear Nuevo Apartado de Casco / Accesorio'"
       modal
-      class="w-full max-w-xl"
+      class="w-full max-w-3xl"
     >
       <div class="space-y-4 py-2">
         <!-- Cliente -->
@@ -243,65 +254,128 @@
               :options="productosList"
               optionLabel="nombre"
               filter
-              placeholder="Buscar casco o accesorio..."
+              placeholder="Buscar casco o accesorio por nombre o código..."
               class="w-full"
             >
               <template #option="{ option }">
                 <div class="flex justify-between items-center w-full">
                   <div>
                     <span class="font-bold text-sm">{{ option.nombre }}</span>
-                    <span v-if="option.talla" class="text-xs text-slate-400 ml-2">Talla: {{ option.talla }}</span>
+                    <span v-if="option.talla" class="text-xs text-slate-500 ml-2 bg-slate-100 px-1.5 py-0.5 rounded">Talla: {{ option.talla }}</span>
                   </div>
-                  <span class="font-bold text-emerald-700 text-xs">{{ formatCurrency(option.precio) }}</span>
+                  <span class="font-bold text-emerald-700 text-xs">{{ formatCurrency(option.precio || option.precio_taller || 0) }}</span>
                 </div>
               </template>
             </Select>
-            <Button icon="pi pi-plus" @click="addItemToNuevo" :disabled="!selectedProduct" />
+            <Button 
+              label="Agregar" 
+              icon="pi pi-plus" 
+              @click="addItemToNuevo" 
+              :disabled="!selectedProduct" 
+              class="bg-amber-600 border-0 text-white font-bold shrink-0" 
+            />
           </div>
         </div>
 
-        <!-- Lista de productos agregados -->
-        <div v-if="nuevoForm.items.length > 0" class="border border-slate-200 rounded-xl overflow-hidden">
-          <div v-for="(item, idx) in nuevoForm.items" :key="idx" class="flex justify-between items-center p-3 border-b last:border-0 bg-slate-50">
-            <div>
-              <div class="font-bold text-sm text-slate-800">{{ item.product_name }}</div>
-              <div class="text-xs text-slate-500">Cant: {{ item.qty }} x {{ formatCurrency(item.unit_price) }}</div>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="font-black text-slate-800">{{ formatCurrency(item.qty * item.unit_price) }}</span>
-              <Button icon="pi pi-trash" severity="danger" text rounded size="small" @click="removeItemFromNuevo(idx)" />
+        <!-- Lista de productos agregados con edición de precio y cantidad -->
+        <div v-if="nuevoForm.items.length > 0" class="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div class="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 uppercase flex justify-between items-center border-b border-slate-200">
+            <span>Productos a Apartar ({{ nuevoForm.items.length }})</span>
+            <span class="text-[11px] text-amber-700 font-semibold italic">Puedes modificar el precio unitario si aplica</span>
+          </div>
+          <div class="divide-y divide-slate-200 bg-white">
+            <div v-for="(item, idx) in nuevoForm.items" :key="idx" class="p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+              <div class="flex-1 min-w-0 w-full md:w-auto">
+                <label class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Descripción / Casco</label>
+                <InputText 
+                  v-model="item.product_name" 
+                  placeholder="Nombre / Detalle del casco" 
+                  class="w-full text-xs font-bold text-slate-800 p-2" 
+                />
+              </div>
+              <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
+                <div class="flex flex-col items-center">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Cant</span>
+                  <InputNumber
+                    v-model="item.qty"
+                    :min="1"
+                    :maxFractionDigits="0"
+                    class="w-16"
+                    inputClass="text-center font-bold text-xs p-2 w-16"
+                  />
+                </div>
+                <div class="flex flex-col items-end">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Precio Unit. (C$)</span>
+                  <InputNumber
+                    v-model="item.unit_price"
+                    mode="currency"
+                    currency="NIO"
+                    locale="es-NI"
+                    :min="0"
+                    class="w-28"
+                    inputClass="text-right font-bold text-xs p-2 w-28 text-emerald-700"
+                  />
+                </div>
+                <div class="flex flex-col items-end min-w-[85px]">
+                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Subtotal</span>
+                  <span class="font-black text-slate-800 text-sm mt-1">{{ formatCurrency((item.qty || 1) * (item.unit_price || 0)) }}</span>
+                </div>
+                <Button 
+                  icon="pi pi-trash" 
+                  severity="danger" 
+                  text 
+                  rounded 
+                  size="small" 
+                  @click="removeItemFromNuevo(idx)" 
+                  class="mt-3 hover:bg-rose-50"
+                  title="Eliminar producto"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Total y Prima Inicial -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-amber-50/60 p-3 rounded-xl border border-amber-200">
+        <!-- Total, Prima Inicial y Saldo -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
           <div>
             <span class="text-xs font-bold text-slate-600 block uppercase">Total del Apartado:</span>
             <span class="text-2xl font-black text-slate-800">{{ formatCurrency(nuevoTotal) }}</span>
           </div>
           <div>
-            <label class="text-xs font-bold text-slate-700 block uppercase">Prima / Abono Inicial:</label>
+            <label class="text-xs font-bold text-slate-700 block uppercase">
+              {{ isEditMode ? 'Total Abonado a la Fecha:' : 'Prima / Abono Inicial:' }}
+            </label>
+            <div v-if="isEditMode" class="text-2xl font-black text-emerald-700 mt-1">
+              {{ formatCurrency(editingApartado?.total_abonado || 0) }}
+            </div>
             <InputNumber
+              v-else
               v-model="nuevoForm.primaMonto"
               mode="currency"
               currency="NIO"
               locale="es-NI"
+              :min="0"
               :max="nuevoTotal"
               fluid
-              class="mt-1 font-bold"
+              class="mt-1 font-black text-emerald-700"
               placeholder="C$ 0.00"
             />
           </div>
+          <div>
+            <span class="text-xs font-bold text-slate-600 block uppercase">Saldo Restante:</span>
+            <span class="text-2xl font-black text-amber-700">
+              {{ formatCurrency(Math.max(0, nuevoTotal - (isEditMode ? Number(editingApartado?.total_abonado || 0) : (nuevoForm.primaMonto || 0)))) }}
+            </span>
+          </div>
         </div>
 
-        <!-- Fecha Límite -->
+        <!-- Fecha Límite y Método de Pago -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Límite para Retirar</label>
             <InputText type="date" v-model="nuevoForm.fechaLimite" class="w-full text-sm" />
           </div>
-          <div>
+          <div v-if="!isEditMode">
             <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Método de Pago de Prima</label>
             <Select
               v-model="nuevoForm.paymentMethod"
@@ -311,17 +385,21 @@
               class="w-full text-sm"
             />
           </div>
+          <div v-else>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Observaciones / Notas</label>
+            <InputText v-model="nuevoForm.notas" placeholder="Notas adicionales..." class="w-full text-sm" />
+          </div>
         </div>
       </div>
 
       <template #footer>
         <Button label="Cancelar" text severity="secondary" @click="nuevoModalVisible = false" />
         <Button
-          label="Crear Apartado"
-          icon="pi pi-check"
+          :label="isEditMode ? 'Guardar Cambios' : 'Crear Apartado'"
+          :icon="isEditMode ? 'pi pi-save' : 'pi pi-check'"
           severity="success"
           :loading="isSaving"
-          :disabled="nuevoForm.items.length === 0 || !nuevoForm.customerName"
+          :disabled="nuevoForm.items.length === 0 || !nuevoForm.customerName || nuevoTotal <= 0"
           @click="handleGuardarApartado"
           class="!font-bold !px-5"
         />
@@ -474,10 +552,17 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { listApartados, crearApartado, registrarAbono, cancelarApartado, marcarEntregado } from '../services/apartados'
+import { 
+  listApartados, 
+  crearApartado, 
+  actualizarApartado, 
+  registrarAbono, 
+  cancelarApartado, 
+  marcarEntregado 
+} from '../services/apartados'
 import { getProductos } from '../services/productos'
 import { formatCurrency } from '../utils/calculations'
-import { handleError, showSuccess } from '../utils/errorHandler'
+import { handleError, showSuccess, showWarning } from '../utils/errorHandler'
 import { useBusinessStore } from '../stores/businessStore'
 import { useConfirm } from 'primevue/useconfirm'
 
@@ -520,8 +605,10 @@ const paymentOptions = [
   { label: 'Transferencia', value: 'transferencia' },
 ]
 
-// Modal Nuevo
+// Modal Nuevo / Editar
 const nuevoModalVisible = ref(false)
+const isEditMode = ref(false)
+const editingApartado = ref(null)
 const selectedProduct = ref(null)
 const nuevoForm = ref({
   customerName: '',
@@ -603,10 +690,12 @@ const filteredApartados = computed(() => {
 })
 
 const nuevoTotal = computed(() => {
-  return nuevoForm.value.items.reduce((sum, item) => sum + (item.qty * item.unit_price), 0)
+  return nuevoForm.value.items.reduce((sum, item) => sum + (Number(item.qty || 1) * Number(item.unit_price || 0)), 0)
 })
 
 const openNuevoApartadoModal = () => {
+  isEditMode.value = false
+  editingApartado.value = null
   const nextMonth = new Date()
   nextMonth.setDate(nextMonth.getDate() + 30)
 
@@ -623,14 +712,38 @@ const openNuevoApartadoModal = () => {
   nuevoModalVisible.value = true
 }
 
+const openEditarModal = (apartado) => {
+  isEditMode.value = true
+  editingApartado.value = apartado
+
+  nuevoForm.value = {
+    customerName: apartado.customer_name || '',
+    customerPhone: apartado.customer_phone || '',
+    fechaLimite: apartado.fecha_limite || '',
+    paymentMethod: 'efectivo',
+    primaMonto: Number(apartado.total_abonado || 0),
+    notas: apartado.notas || '',
+    items: (apartado.items || []).map(i => ({
+      product_id: i.product_id,
+      product_name: i.product_name,
+      qty: Number(i.qty || 1),
+      unit_price: Number(i.unit_price || 0)
+    }))
+  }
+  selectedProduct.value = null
+  nuevoModalVisible.value = true
+}
+
 const addItemToNuevo = () => {
   if (!selectedProduct.value) return
   const prod = selectedProduct.value
+  const price = Number(prod.precio || prod.precio_taller || prod.costo || 0)
+  
   nuevoForm.value.items.push({
     product_id: prod.id,
-    product_name: `${prod.nombre} ${prod.talla ? '(' + prod.talla + ')' : ''}`,
+    product_name: `${prod.nombre}${prod.talla ? ' (Talla: ' + prod.talla + ')' : ''}`,
     qty: 1,
-    unit_price: Number(prod.precio || 0)
+    unit_price: price
   })
   selectedProduct.value = null
 }
@@ -640,43 +753,80 @@ const removeItemFromNuevo = (idx) => {
 }
 
 const handleGuardarApartado = async () => {
+  if (!nuevoForm.value.customerName?.trim()) {
+    showWarning('Ingresa el nombre del cliente')
+    return
+  }
+  if (nuevoForm.value.items.length === 0) {
+    showWarning('Agrega al menos un casco o accesorio al apartado')
+    return
+  }
+  if (nuevoTotal.value <= 0) {
+    showWarning('El monto total del apartado debe ser mayor a 0')
+    return
+  }
+
   try {
     isSaving.value = true
-    const result = await crearApartado({
-      customerId: null,
-      customerName: nuevoForm.value.customerName.trim(),
-      customerPhone: nuevoForm.value.customerPhone?.trim() || null,
-      fechaLimite: nuevoForm.value.fechaLimite || null,
-      notas: nuevoForm.value.notas?.trim() || null,
-      items: nuevoForm.value.items,
-      primaMonto: Number(nuevoForm.value.primaMonto || 0),
-      paymentMethod: nuevoForm.value.paymentMethod,
-      amountReceived: Number(nuevoForm.value.primaMonto || 0),
-      changeGiven: 0
-    })
+    const sanitizedItems = nuevoForm.value.items.map(i => ({
+      product_id: i.product_id,
+      product_name: i.product_name,
+      qty: Number(i.qty || 1),
+      unit_price: Number(i.unit_price || 0)
+    }))
 
-    showSuccess('Apartado creado y casco reservado con éxito')
-    nuevoModalVisible.value = false
-    await fetchApartados()
+    if (isEditMode.value && editingApartado.value) {
+      // 1. Modo Edición
+      await actualizarApartado({
+        apartadoId: editingApartado.value.id,
+        customerName: nuevoForm.value.customerName.trim(),
+        customerPhone: nuevoForm.value.customerPhone?.trim() || null,
+        fechaLimite: nuevoForm.value.fechaLimite || null,
+        notas: nuevoForm.value.notas?.trim() || null,
+        items: sanitizedItems
+      })
 
-    // Si hubo prima, imprimir recibo
-    if (Number(nuevoForm.value.primaMonto) > 0) {
-      printData.value = {
-        apartado: result,
-        abono: {
-          monto: Number(nuevoForm.value.primaMonto),
-          saldo_anterior: result.total,
-          saldo_nuevo: result.saldo_pendiente,
-          payment_method: nuevoForm.value.paymentMethod,
-          created_at: new Date()
-        },
-        items: nuevoForm.value.items
+      showSuccess('Apartado actualizado y stock ajustado correctamente')
+      nuevoModalVisible.value = false
+      await fetchApartados()
+    } else {
+      // 2. Modo Creación
+      const result = await crearApartado({
+        customerId: null,
+        customerName: nuevoForm.value.customerName.trim(),
+        customerPhone: nuevoForm.value.customerPhone?.trim() || null,
+        fechaLimite: nuevoForm.value.fechaLimite || null,
+        notas: nuevoForm.value.notas?.trim() || null,
+        items: sanitizedItems,
+        primaMonto: Number(nuevoForm.value.primaMonto || 0),
+        paymentMethod: nuevoForm.value.paymentMethod || 'efectivo',
+        amountReceived: Number(nuevoForm.value.primaMonto || 0),
+        changeGiven: 0
+      })
+
+      showSuccess('Apartado creado y casco reservado con éxito')
+      nuevoModalVisible.value = false
+      await fetchApartados()
+
+      // Si hubo prima, imprimir recibo
+      if (Number(nuevoForm.value.primaMonto) > 0) {
+        printData.value = {
+          apartado: result,
+          abono: {
+            monto: Number(nuevoForm.value.primaMonto),
+            saldo_anterior: result.total,
+            saldo_nuevo: result.saldo_pendiente,
+            payment_method: nuevoForm.value.paymentMethod,
+            created_at: new Date()
+          },
+          items: sanitizedItems
+        }
+        await nextTick()
+        window.print()
       }
-      await nextTick()
-      window.print()
     }
   } catch (err) {
-    handleError(err)
+    handleError(err, 'Error al guardar el apartado')
   } finally {
     isSaving.value = false
   }

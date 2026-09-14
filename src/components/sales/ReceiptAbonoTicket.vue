@@ -2,14 +2,14 @@
   <div class="receipt-container hidden print:block bg-white text-black font-mono text-sm leading-snug">
     <!-- Header -->
     <div class="text-center mb-3">
-      <div class="flex justify-center mb-2">
+      <div class="flex justify-center mb-2" v-if="activeLogo">
         <img 
-          src="/logo.png" 
+          :src="activeLogo" 
           alt="Logo" 
           class="receipt-logo w-[58mm] max-w-[85%] h-auto object-contain mx-auto" 
         />
       </div>
-      <h2 class="text-base font-extrabold uppercase tracking-wide mb-1">{{ business?.name || 'JyG MotoTech' }}</h2>
+      <h2 class="text-base font-extrabold uppercase tracking-wide mb-1">{{ businessName }}</h2>
       <p v-if="business?.ruc" class="text-xs font-semibold text-black">R.U.C: {{ business.ruc }}</p>
       <p v-if="business?.address" class="text-xs text-black">{{ business.address }}</p>
       <p v-if="business?.phone" class="text-xs text-black">Tel: {{ business.phone }}</p>
@@ -106,7 +106,12 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { useCompanyStore } from '../../stores/companyStore'
+
+const companyStore = useCompanyStore()
+
+const props = defineProps({
   apartado: {
     type: Object,
     default: () => ({})
@@ -123,6 +128,20 @@ defineProps({
     type: Object,
     default: () => ({})
   }
+})
+
+const isMotoTech = computed(() => {
+  return companyStore.isMotoTech || localStorage.getItem('active_company_id') === 'mototech'
+})
+
+const activeLogo = computed(() => {
+  if (props.business?.logo) return props.business.logo
+  return isMotoTech.value ? '/mototech_logo.png' : '/logo.png'
+})
+
+const businessName = computed(() => {
+  if (props.business?.name) return props.business.name
+  return isMotoTech.value ? 'JyG MotoTech' : 'Carnicería María Félix'
 })
 
 const formatCurrency = (value) => {
