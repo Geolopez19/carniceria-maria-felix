@@ -411,14 +411,25 @@
           </div>
         </div>
 
-        <!-- Fecha Límite y Método de Pago -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Fecha Límite, Plazos y Método de Pago -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Límite para Retirar</label>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Límite</label>
             <InputText type="date" v-model="nuevoForm.fechaLimite" class="w-full text-sm" />
           </div>
+          <div>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Cantidad de Plazos</label>
+            <InputNumber
+              v-model="nuevoForm.numeroPlazos"
+              :min="1"
+              :max="12"
+              fluid
+              class="w-full text-sm font-bold"
+              placeholder="Ej: 3"
+            />
+          </div>
           <div v-if="!isEditMode">
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Método de Pago de Prima</label>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Método de Prima</label>
             <Select
               v-model="nuevoForm.paymentMethod"
               :options="paymentOptions"
@@ -428,9 +439,20 @@
             />
           </div>
           <div v-else>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Observaciones / Notas</label>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Observaciones</label>
             <InputText v-model="nuevoForm.notas" placeholder="Notas adicionales..." class="w-full text-sm" />
           </div>
+        </div>
+
+        <!-- Calculadora Resumen Cuota Estimada -->
+        <div v-if="nuevoForm.numeroPlazos > 0 && nuevoTotal > 0" class="bg-cyan-50/80 p-3 rounded-xl border border-cyan-200 flex justify-between items-center text-xs">
+          <div>
+            <span class="font-bold text-cyan-900 block">Cuota Sugerida por Plazo ({{ nuevoForm.numeroPlazos }} plazos):</span>
+            <span class="text-[11px] text-cyan-700">Dividido equitativamente entre los {{ nuevoForm.numeroPlazos }} plazos acordados</span>
+          </div>
+          <span class="font-black text-cyan-950 text-base font-mono">
+            {{ formatCurrency((nuevoTotal - (nuevoForm.primaMonto || 0)) / (nuevoForm.numeroPlazos || 1)) }}
+          </span>
         </div>
       </div>
 
@@ -485,8 +507,16 @@
           />
         </div>
 
-        <!-- Efectivo y Vuelto si aplica -->
+        <!-- Fecha del Abono y Método de Pago -->
         <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Fecha del Abono</label>
+            <InputText
+              type="date"
+              v-model="abonoForm.fechaAbono"
+              class="w-full text-xs font-bold"
+            />
+          </div>
           <div>
             <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Método de Pago</label>
             <Select
@@ -497,18 +527,23 @@
               class="w-full text-xs"
             />
           </div>
-          <div v-if="abonoForm.paymentMethod === 'efectivo'">
-            <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Billete Recibido</label>
-            <InputNumber
-              v-model="abonoForm.amountReceived"
-              mode="currency"
-              currency="NIO"
-              locale="es-NI"
-              fluid
-              class="text-xs"
-              placeholder="C$ 0.00"
-            />
-          </div>
+        </div>
+
+        <!-- Billete Recibido si es Efectivo -->
+        <div v-if="abonoForm.paymentMethod === 'efectivo'">
+          <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Monto Entregado por Cliente (Ej: 3 billetes de C$500 = C$1500)</label>
+          <InputNumber
+            v-model="abonoForm.amountReceived"
+            mode="currency"
+            currency="NIO"
+            locale="es-NI"
+            fluid
+            class="text-xs font-bold"
+            placeholder="C$ 0.00"
+          />
+          <small class="text-[10px] text-slate-500 mt-0.5 block">
+            Ingresa el total que te entregó el cliente para calcular el vuelto exacto.
+          </small>
         </div>
 
         <!-- Vuelto Calculado -->
@@ -715,6 +750,7 @@ const nuevoForm = ref({
   customerName: '',
   customerPhone: '',
   fechaLimite: '',
+  numeroPlazos: 3,
   paymentMethod: 'efectivo',
   primaMonto: 0,
   notas: '',
@@ -743,7 +779,14 @@ const printData = ref({
 const fetchApartados = async () => {
   try {
     isLoading.value = true
-    apartados.value = await listApartados({ status: statusFilter.value })
+    const res = await listApartados({ status: statusFilter.value })
+    apartados.value = res.map(a => {
+      const storedPlazos = localStorage.getItem(`apt_plazos_${a.id}`)
+      return {
+        ...a,
+        numero_plazos: Number(a.numero_plazos || storedPlazos || 3)
+      }
+    })
   } catch (err) {
     handleError(err)
   } finally {
@@ -817,10 +860,12 @@ const openEditarModal = (apartado) => {
   isEditMode.value = true
   editingApartado.value = apartado
 
+  const storedPlazos = localStorage.getItem(`apt_plazos_${apartado.id}`)
   nuevoForm.value = {
     customerName: apartado.customer_name || '',
     customerPhone: apartado.customer_phone || '',
     fechaLimite: apartado.fecha_limite || '',
+    numeroPlazos: Number(apartado.numero_plazos || storedPlazos || 3),
     paymentMethod: 'efectivo',
     primaMonto: Number(apartado.total_abonado || 0),
     notas: apartado.notas || '',
@@ -889,9 +934,12 @@ const handleGuardarApartado = async () => {
         customerName: nuevoForm.value.customerName.trim(),
         customerPhone: nuevoForm.value.customerPhone?.trim() || null,
         fechaLimite: nuevoForm.value.fechaLimite || null,
+        numeroPlazos: Number(nuevoForm.value.numeroPlazos || 3),
         notas: nuevoForm.value.notas?.trim() || null,
         items: sanitizedItems
       })
+
+      localStorage.setItem(`apt_plazos_${editingApartado.value.id}`, String(nuevoForm.value.numeroPlazos || 3))
 
       showSuccess('Apartado actualizado y stock ajustado correctamente')
       nuevoModalVisible.value = false
@@ -903,6 +951,7 @@ const handleGuardarApartado = async () => {
         customerName: nuevoForm.value.customerName.trim(),
         customerPhone: nuevoForm.value.customerPhone?.trim() || null,
         fechaLimite: nuevoForm.value.fechaLimite || null,
+        numeroPlazos: Number(nuevoForm.value.numeroPlazos || 3),
         notas: nuevoForm.value.notas?.trim() || null,
         items: sanitizedItems,
         primaMonto: Number(nuevoForm.value.primaMonto || 0),
@@ -910,6 +959,14 @@ const handleGuardarApartado = async () => {
         amountReceived: Number(nuevoForm.value.primaMonto || 0),
         changeGiven: 0
       })
+
+      // Guardar localmente la configuración de plazos si la base de datos devuelve el apartado
+      if (result) {
+        if (typeof result === 'object') {
+          result.numero_plazos = Number(nuevoForm.value.numeroPlazos || 3)
+        }
+        localStorage.setItem(`apt_plazos_${result?.id || result}`, String(nuevoForm.value.numeroPlazos || 3))
+      }
 
       showSuccess('Apartado creado y casco reservado con éxito')
       nuevoModalVisible.value = false
@@ -944,7 +1001,8 @@ const openAbonarModal = (apartado) => {
   abonoForm.value = {
     monto: Math.min(500, apartado.saldo_pendiente),
     paymentMethod: 'efectivo',
-    amountReceived: Math.min(500, apartado.saldo_pendiente)
+    amountReceived: Math.min(500, apartado.saldo_pendiente),
+    fechaAbono: getLocalDateString(new Date())
   }
   abonoModalVisible.value = true
 }
@@ -962,17 +1020,23 @@ const handleGuardarAbono = async () => {
       monto,
       paymentMethod: abonoForm.value.paymentMethod,
       amountReceived,
-      changeGiven
+      changeGiven,
+      fechaAbono: abonoForm.value.fechaAbono || null
     })
 
     showSuccess('Abono registrado exitosamente')
     abonoModalVisible.value = false
     await fetchApartados()
 
+    const abonoTarget = { ...result.abono }
+    if (abonoForm.value.fechaAbono) {
+      abonoTarget.created_at = abonoForm.value.fechaAbono
+    }
+
     // Imprimir Comprobante de Abono
     printData.value = {
       apartado: result.apartado,
-      abono: result.abono,
+      abono: abonoTarget,
       items: apt.items || []
     }
     await nextTick()

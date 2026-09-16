@@ -28,9 +28,9 @@
         <span class="font-bold">Apartado #:</span>
         <span class="font-extrabold text-sm">{{ apartado?.codigo_apartado || '---' }}</span>
       </div>
-      <div class="flex justify-between">
-        <span class="font-bold">Cliente:</span>
-        <span class="truncate max-w-[180px] font-semibold">{{ apartado?.customer_name || 'Cliente' }}</span>
+      <div class="flex justify-between items-start gap-1">
+        <span class="font-bold shrink-0">Cliente:</span>
+        <span class="break-words flex-1 text-right font-semibold">{{ apartado?.customer_name || 'Cliente' }}</span>
       </div>
       <div class="flex justify-between" v-if="apartado?.customer_phone">
         <span class="font-bold">Teléfono:</span>
@@ -106,6 +106,10 @@
           {{ formatCurrency(currentSaldoPendiente) }}
         </span>
       </div>
+      <div v-if="currentSaldoPendiente > 0" class="flex justify-between font-bold text-xs pt-1">
+        <span>PRÓXIMA CUOTA:</span>
+        <span class="font-extrabold">{{ formatCurrency(proximaCuota) }}</span>
+      </div>
       <div v-if="currentSaldoPendiente <= 0" class="text-center font-black text-xs uppercase py-1 bg-gray-100 mt-1">
         *** PRODUCTO LIQUIDADO AL 100% ***
       </div>
@@ -166,6 +170,15 @@ const currentSaldoPendiente = computed(() => {
     return Number(props.abono.saldo_nuevo || 0)
   }
   return Number(props.apartado?.saldo_pendiente ?? (props.apartado?.total || 0))
+})
+
+const proximaCuota = computed(() => {
+  const total = Number(props.apartado?.total || 0)
+  const saldo = currentSaldoPendiente.value
+  if (saldo <= 0) return 0
+  const plazos = Number(props.apartado?.numero_plazos || props.apartado?.plazos || 3)
+  const cuotaBase = Math.round((total / (plazos > 0 ? plazos : 3)) * 100) / 100
+  return Math.min(saldo, cuotaBase)
 })
 
 const getStatusLabel = (st) => ({

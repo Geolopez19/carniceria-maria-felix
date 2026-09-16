@@ -46,6 +46,7 @@ export async function crearApartado({
   customerName,
   customerPhone,
   fechaLimite,
+  numeroPlazos = 3,
   notas,
   items,
   primaMonto = 0,
@@ -77,7 +78,8 @@ export async function registrarAbono({
   paymentMethod = 'efectivo',
   amountReceived = 0,
   changeGiven = 0,
-  notas = null
+  notas = null,
+  fechaAbono = null
 }) {
   const supabase = getActiveSupabase()
   const { data, error } = await supabase.rpc('fn_registrar_abono', {
@@ -90,6 +92,21 @@ export async function registrarAbono({
   })
 
   if (error) throw error
+
+  // Si se especificó una fecha personalizada para el abono, actualizar el registro insertado
+  if (fechaAbono && data?.abono?.id) {
+    try {
+      const fechaIso = new Date(fechaAbono.includes('T') ? fechaAbono : `${fechaAbono}T12:00:00`).toISOString()
+      await supabase
+        .from('apartados_abonos')
+        .update({ created_at: fechaIso })
+        .eq('id', data.abono.id)
+      data.abono.created_at = fechaIso
+    } catch (e) {
+      console.warn('Error actualizando fecha del abono:', e)
+    }
+  }
+
   return data
 }
 
@@ -174,19 +191,20 @@ export async function actualizarApartado({
   customerName,
   customerPhone,
   fechaLimite,
+  numeroPlazos = 3,
   notas,
   items
 }) {
   const supabase = getActiveSupabase()
 
-  // 1. Obtener apartado actual con sus items anteriores
-  const { data: aptActual, error: getErr } = await supabase
+  // 1. Obtener apartado actual con sus items
+  const { data: aptActual, error: fetchErr } = await supabase
     .from('apartados')
     .select('*, items:apartados_items(*)')
     .eq('id', apartadoId)
     .single()
 
-  if (getErr) throw getErr
+  if (fetchErr) throw fetchErr
 
   const oldItems = aptActual.items || []
 
@@ -297,18 +315,20 @@ export async function actualizarApartado({
   }
 
   // 5. Actualizar encabezado del apartado
+  const updatePayload = {
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    fecha_limite: fechaLimite,
+    notas: notas,
+    total: newTotal,
+    saldo_pendiente: newSaldoPendiente,
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  }
+
   const { data: updatedApt, error: updErr } = await supabase
     .from('apartados')
-    .update({
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      fecha_limite: fechaLimite,
-      notas: notas,
-      total: newTotal,
-      saldo_pendiente: newSaldoPendiente,
-      status: newStatus,
-      updated_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq('id', apartadoId)
     .select('*, items:apartados_items(*), abonos:apartados_abonos(*)')
     .single()
