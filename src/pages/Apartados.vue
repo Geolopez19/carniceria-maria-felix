@@ -8,6 +8,18 @@
       :business="businessStore.settings"
     />
 
+    <!-- Contenedor Oculto para Generación de Imagen PNG en Alta Resolución -->
+    <div class="fixed -left-[9999px] -top-[9999px] pointer-events-none" style="width: 440px;">
+      <ApartadoDigitalVoucher
+        ref="digitalVoucherRef"
+        v-if="voucherData.apartado"
+        :apartado="voucherData.apartado"
+        :abono="voucherData.abono"
+        :items="voucherData.items"
+        :business="businessStore.settings"
+      />
+    </div>
+
     <!-- Header Principal -->
     <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-700 rounded-2xl p-6 mb-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -166,9 +178,39 @@
           </template>
         </Column>
 
-        <Column header="Acciones" style="width: 160px" class="text-right">
+        <Column header="Acciones" style="width: 230px" class="text-right">
           <template #body="{ data }">
-            <div class="flex gap-1 justify-end">
+            <div class="flex gap-1 justify-end items-center">
+              <!-- Botón Descargar Imagen PNG -->
+              <Button
+                icon="pi pi-image"
+                severity="info"
+                text
+                rounded
+                @click="descargarComprobanteImagen(data)"
+                title="Descargar Comprobante como Imagen (PNG)"
+              />
+
+              <!-- Botón Imprimir Comprobante General / Deuda -->
+              <Button
+                icon="pi pi-print"
+                severity="secondary"
+                text
+                rounded
+                @click="imprimirComprobante(data)"
+                title="Imprimir Comprobante de Apartado / Total de Deuda"
+              />
+
+              <!-- Botón Enviar WhatsApp -->
+              <Button
+                icon="pi pi-whatsapp"
+                severity="success"
+                text
+                rounded
+                @click="compartirWhatsApp(data)"
+                title="Enviar Detalle de Deuda por WhatsApp"
+              />
+
               <!-- Botón Editar Apartado -->
               <Button
                 v-if="data.status === 'activo' || data.status === 'liquidado'"
@@ -532,9 +574,29 @@
                 <span class="font-bold text-slate-700">Abono #{{ abono.numero_abono }}</span>
                 <span class="text-slate-400 block text-[10px]">{{ formatDate(abono.created_at) }} ({{ abono.payment_method }})</span>
               </div>
-              <div class="text-right">
-                <span class="font-black text-emerald-600 block text-sm">{{ formatCurrency(abono.monto) }}</span>
-                <span class="text-[10px] text-slate-400">Saldo: {{ formatCurrency(abono.saldo_nuevo) }}</span>
+              <div class="flex items-center gap-3">
+                <div class="text-right">
+                  <span class="font-black text-emerald-600 block text-sm">{{ formatCurrency(abono.monto) }}</span>
+                  <span class="text-[10px] text-slate-400">Saldo: {{ formatCurrency(abono.saldo_nuevo) }}</span>
+                </div>
+                <Button 
+                  icon="pi pi-image" 
+                  text 
+                  rounded 
+                  severity="info" 
+                  size="small"
+                  @click="descargarComprobanteImagen(selectedApartado, abono)" 
+                  title="Descargar este Recibo de Abono como Imagen (PNG)" 
+                />
+                <Button 
+                  icon="pi pi-print" 
+                  text 
+                  rounded 
+                  severity="secondary" 
+                  size="small"
+                  @click="imprimirAbono(selectedApartado, abono)" 
+                  title="Reimprimir Recibo de este Abono" 
+                />
               </div>
             </div>
             <div v-if="!selectedApartado.abonos || selectedApartado.abonos.length === 0" class="text-xs text-slate-400 text-center py-2">
@@ -543,6 +605,35 @@
           </div>
         </div>
       </div>
+
+      <template #footer>
+        <div class="flex flex-wrap justify-between items-center w-full gap-2">
+          <div class="flex gap-2">
+            <Button
+              label="WhatsApp"
+              icon="pi pi-whatsapp"
+              severity="success"
+              text
+              @click="compartirWhatsApp(selectedApartado)"
+            />
+            <Button
+              label="Descargar Imagen (PNG)"
+              icon="pi pi-image"
+              severity="info"
+              @click="descargarComprobanteImagen(selectedApartado)"
+            />
+          </div>
+          <div class="flex gap-2">
+            <Button label="Cerrar" text severity="secondary" @click="detalleModalVisible = false" />
+            <Button
+              label="Imprimir Ticket"
+              icon="pi pi-print"
+              severity="warn"
+              @click="imprimirComprobante(selectedApartado)"
+            />
+          </div>
+        </div>
+      </template>
     </Dialog>
 
     <!-- Confirm Dialog -->
@@ -579,9 +670,19 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import ConfirmDialog from 'primevue/confirmdialog'
 import ReceiptAbonoTicket from '../components/sales/ReceiptAbonoTicket.vue'
+import ApartadoDigitalVoucher from '../components/sales/ApartadoDigitalVoucher.vue'
+import { downloadElementAsImage } from '../utils/downloadImage'
+import { formatDateTime, formatDateOnly as formatDateOnlyHelper, getLocalDateString } from '../utils/dateUtils'
 
 const businessStore = useBusinessStore()
 const confirm = useConfirm()
+
+const digitalVoucherRef = ref(null)
+const voucherData = ref({
+  apartado: null,
+  abono: null,
+  items: []
+})
 
 const apartados = ref([])
 const productosList = ref([])
@@ -702,7 +803,7 @@ const openNuevoApartadoModal = () => {
   nuevoForm.value = {
     customerName: '',
     customerPhone: '',
-    fechaLimite: nextMonth.toISOString().slice(0, 10),
+    fechaLimite: getLocalDateString(nextMonth),
     paymentMethod: 'efectivo',
     primaMonto: 0,
     notas: '',
@@ -888,6 +989,89 @@ const openDetalleModal = (apartado) => {
   detalleModalVisible.value = true
 }
 
+const imprimirComprobante = async (apartado) => {
+  if (!apartado) return
+  printData.value = {
+    apartado,
+    abono: null,
+    items: apartado.items || []
+  }
+  await nextTick()
+  window.print()
+}
+
+const imprimirAbono = async (apartado, abono) => {
+  if (!apartado || !abono) return
+  printData.value = {
+    apartado,
+    abono,
+    items: apartado.items || []
+  }
+  await nextTick()
+  window.print()
+}
+
+const descargarComprobanteImagen = async (apartado, abono = null) => {
+  if (!apartado) return
+  try {
+    voucherData.value = {
+      apartado,
+      abono,
+      items: apartado.items || []
+    }
+    await nextTick()
+    
+    // Pequeña pausa para asegurar el renderizado de estilos y fuentes
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    
+    const voucherEl = digitalVoucherRef.value?.voucherRef || digitalVoucherRef.value?.$el
+    if (!voucherEl) {
+      throw new Error('No se pudo encontrar el comprobante para generar la imagen')
+    }
+
+    const tipoDoc = abono ? 'RECIBO_ABONO' : 'COMPROBANTE_APARTADO'
+    const cod = (apartado.codigo_apartado || 'MT').replace(/[^a-zA-Z0-9-_]/g, '')
+    const cliente = (apartado.customer_name || 'cliente').replace(/\s+/g, '_')
+    const fileName = `${tipoDoc}_${cod}_${cliente}.png`
+
+    await downloadElementAsImage(voucherEl, fileName)
+  } catch (err) {
+    handleError(err, 'Error al generar imagen del comprobante')
+  }
+}
+
+const compartirWhatsApp = (apartado) => {
+  if (!apartado) return
+  const phone = (apartado.customer_phone || '').replace(/[^0-9]/g, '')
+  const itemsList = (apartado.items || [])
+    .map(i => `• ${i.product_name} (x${i.qty}) - ${formatCurrency(i.line_total || i.unit_price * i.qty)}`)
+    .join('\n')
+  
+  const msg = `*🏍️ JY G MOTOTECH - COMPROBANTE DE APARTADO*\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📌 *Apartado:* #${apartado.codigo_apartado}\n` +
+    `👤 *Cliente:* ${apartado.customer_name}\n` +
+    (apartado.fecha_limite ? `📅 *Fecha Límite:* ${formatDateOnly(apartado.fecha_limite)}\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `📦 *Producto(s) Reservado(s):*\n${itemsList || '• Casco / Accesorio'}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `💰 *Precio Total:* ${formatCurrency(apartado.total)}\n` +
+    `💵 *Total Abonado:* ${formatCurrency(apartado.total_abonado)}\n` +
+    `⚠️ *SALDO PENDIENTE (DEUDA):* ${formatCurrency(apartado.saldo_pendiente)}\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━\n` +
+    (Number(apartado.saldo_pendiente) <= 0 
+      ? `🎉 *¡PRODUCTO LIQUIDADO AL 100%!* Puede pasar a retirarlo.\n` 
+      : `Conserve este comprobante para realizar sus próximos abonos o retirar su producto.\n`) +
+    `¡Gracias por su preferencia en JyG MotoTech!`
+
+  const cleanPhone = phone.startsWith('505') ? phone : (phone.length === 8 ? `505${phone}` : phone)
+  const url = cleanPhone.length >= 8 
+    ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`
+
+  window.open(url, '_blank')
+}
+
 const confirmarEntrega = (apartado) => {
   confirm.require({
     message: `¿Confirmar entrega de los productos a ${apartado.customer_name}?`,
@@ -948,6 +1132,6 @@ const getProgressColor = (data) => {
   return 'bg-amber-500'
 }
 
-const formatDate = (ds) => ds ? new Date(ds).toLocaleString('es-NI') : ''
-const formatDateOnly = (ds) => ds ? new Date(ds).toLocaleDateString('es-NI') : ''
+const formatDate = (ds) => formatDateTime(ds)
+const formatDateOnly = (ds) => formatDateOnlyHelper(ds)
 </script>

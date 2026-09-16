@@ -14,7 +14,7 @@
       <p v-if="business?.address" class="text-xs text-black">{{ business.address }}</p>
       <p v-if="business?.phone" class="text-xs text-black">Tel: {{ business.phone }}</p>
       <div class="mt-2 py-1 px-2 border-y-2 border-black font-black text-center text-xs tracking-wider uppercase">
-        *** COMPROBANTE DE ABONO ***
+        *** {{ abono?.monto ? 'COMPROBANTE DE ABONO' : 'ESTADO DE CUENTA - APARTADO' }} ***
       </div>
     </div>
 
@@ -40,6 +40,10 @@
         <span class="font-bold">Fecha Límite:</span>
         <span class="font-black">{{ formatDateOnly(apartado.fecha_limite) }}</span>
       </div>
+      <div class="flex justify-between">
+        <span class="font-bold">Estado:</span>
+        <span class="font-bold uppercase">{{ getStatusLabel(apartado?.status) }}</span>
+      </div>
     </div>
 
     <!-- Artículos Apartados -->
@@ -47,58 +51,70 @@
       <div class="text-xs font-bold uppercase mb-1 border-b border-black pb-0.5">
         Artículo(s) Apartado(s):
       </div>
-      <div v-for="item in items" :key="item.id" class="mb-1 text-xs">
+      <div v-for="item in (items.length > 0 ? items : (apartado?.items || []))" :key="item.id || item.product_id" class="mb-1 text-xs">
         <div class="font-bold uppercase leading-tight">{{ item.product_name }}</div>
         <div class="flex justify-between text-gray-700">
           <span>Cant: {{ item.qty }} x {{ formatCurrency(item.unit_price) }}</span>
-          <span class="font-bold text-black">{{ formatCurrency(item.line_total) }}</span>
+          <span class="font-bold text-black">{{ formatCurrency(item.line_total || (item.qty * item.unit_price)) }}</span>
         </div>
       </div>
     </div>
 
-    <!-- Desglose Financiero del Abono -->
+    <!-- Desglose Financiero -->
     <div class="mb-4 text-xs space-y-1">
       <div class="flex justify-between">
         <span>Precio Total del Producto:</span>
         <span class="font-bold">{{ formatCurrency(apartado?.total || 0) }}</span>
       </div>
-      <div class="flex justify-between text-gray-700">
-        <span>Saldo Anterior:</span>
-        <span>{{ formatCurrency(abono?.saldo_anterior || 0) }}</span>
-      </div>
-      <div class="flex justify-between font-extrabold text-sm border-y border-black py-1 my-1">
-        <span>MONTO ABONADO:</span>
-        <span>{{ formatCurrency(abono?.monto || 0) }}</span>
-      </div>
-      <div class="flex justify-between" v-if="abono?.payment_method">
-        <span>Método de Pago:</span>
-        <span class="uppercase font-semibold">{{ abono.payment_method }}</span>
-      </div>
-      <div class="flex justify-between" v-if="abono?.amount_received > 0">
-        <span>Efectivo Recibido:</span>
-        <span>{{ formatCurrency(abono.amount_received) }}</span>
-      </div>
-      <div class="flex justify-between" v-if="abono?.amount_received > 0">
-        <span>Vuelto:</span>
-        <span>{{ formatCurrency(abono.change_given || 0) }}</span>
-      </div>
+
+      <!-- Caso: Recibo de Abono Específico -->
+      <template v-if="abono?.monto">
+        <div class="flex justify-between text-gray-700" v-if="abono?.saldo_anterior !== undefined">
+          <span>Saldo Anterior:</span>
+          <span>{{ formatCurrency(abono?.saldo_anterior || 0) }}</span>
+        </div>
+        <div class="flex justify-between font-extrabold text-sm border-y border-black py-1 my-1">
+          <span>MONTO ABONADO:</span>
+          <span>{{ formatCurrency(abono?.monto || 0) }}</span>
+        </div>
+        <div class="flex justify-between" v-if="abono?.payment_method">
+          <span>Método de Pago:</span>
+          <span class="uppercase font-semibold">{{ abono.payment_method }}</span>
+        </div>
+        <div class="flex justify-between" v-if="abono?.amount_received > 0">
+          <span>Efectivo Recibido:</span>
+          <span>{{ formatCurrency(abono.amount_received) }}</span>
+        </div>
+        <div class="flex justify-between" v-if="abono?.amount_received > 0">
+          <span>Vuelto:</span>
+          <span>{{ formatCurrency(abono.change_given || 0) }}</span>
+        </div>
+      </template>
+
+      <!-- Caso: Consulta General / Resumen de Deuda -->
+      <template v-else>
+        <div class="flex justify-between text-gray-700">
+          <span>Total Abonado a la Fecha:</span>
+          <span class="font-bold text-emerald-700">{{ formatCurrency(apartado?.total_abonado || 0) }}</span>
+        </div>
+      </template>
       
-      <!-- Saldo Restante en Grande -->
+      <!-- Saldo Restante / Deuda en Grande -->
       <div class="flex justify-between font-black text-sm border-t-2 border-dashed border-black pt-2 mt-2">
-        <span>SALDO RESTANTE:</span>
-        <span :class="(abono?.saldo_nuevo || 0) <= 0 ? 'text-black' : ''">
-          {{ formatCurrency(abono?.saldo_nuevo ?? apartado?.saldo_pendiente ?? 0) }}
+        <span>SALDO RESTANTE (DEUDA):</span>
+        <span :class="currentSaldoPendiente <= 0 ? 'text-black' : 'text-black'">
+          {{ formatCurrency(currentSaldoPendiente) }}
         </span>
       </div>
-      <div v-if="(abono?.saldo_nuevo || 0) <= 0" class="text-center font-black text-xs uppercase py-1 bg-gray-100 mt-1">
+      <div v-if="currentSaldoPendiente <= 0" class="text-center font-black text-xs uppercase py-1 bg-gray-100 mt-1">
         *** PRODUCTO LIQUIDADO AL 100% ***
       </div>
     </div>
 
     <!-- Footer -->
     <div class="text-center text-xs space-y-1">
-      <p class="font-bold">*** GRACIAS POR SU ABONO ***</p>
-      <p class="text-[11px]">Conserve este recibo para su próximo abono o entrega.</p>
+      <p class="font-bold">*** {{ currentSaldoPendiente <= 0 ? '¡GRACIAS POR SU COMPRA!' : 'GRACIAS POR SU PREFERENCIA' }} ***</p>
+      <p class="text-[11px]">Conserve este recibo para su próximo abono o retiro.</p>
       <p v-if="business?.website" class="text-[11px]">{{ business.website }}</p>
       <p class="mt-2 text-[10px] text-black font-medium">Desarrollado por: GL Solutions</p>
     </div>
@@ -108,6 +124,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useCompanyStore } from '../../stores/companyStore'
+import { formatDateTime, formatDateOnly as formatDateOnlyHelper } from '../../utils/dateUtils'
 
 const companyStore = useCompanyStore()
 
@@ -144,6 +161,20 @@ const businessName = computed(() => {
   return isMotoTech.value ? 'JyG MotoTech' : 'Carnicería María Félix'
 })
 
+const currentSaldoPendiente = computed(() => {
+  if (props.abono && props.abono.saldo_nuevo !== undefined && props.abono.saldo_nuevo !== null) {
+    return Number(props.abono.saldo_nuevo || 0)
+  }
+  return Number(props.apartado?.saldo_pendiente ?? (props.apartado?.total || 0))
+})
+
+const getStatusLabel = (st) => ({
+  activo: 'Activo (En pagos)',
+  liquidado: 'Liquidado (100% Pagado)',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado'
+}[st] || st || 'Activo')
+
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('es-NI', {
     style: 'currency',
@@ -152,18 +183,11 @@ const formatCurrency = (value) => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleString('es-NI', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  })
+  return formatDateTime(dateString)
 }
 
 const formatDateOnly = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleDateString('es-NI', {
-    dateStyle: 'medium'
-  })
+  return formatDateOnlyHelper(dateString)
 }
 </script>
 

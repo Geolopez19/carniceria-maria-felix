@@ -113,14 +113,9 @@
         </Column>
         <Column field="created_at" header="Fecha">
           <template #body="{ data }">
-            <div class="flex flex-col">
-              <span class="text-sm text-slate-700">{{
-                new Date(data.created_at).toLocaleDateString()
-              }}</span>
-              <span class="text-[10px] text-slate-400">{{
-                new Date(data.created_at).toLocaleTimeString()
-              }}</span>
-            </div>
+            <span class="text-sm text-slate-700 font-medium">{{
+              formatDateTime(data.created_at)
+            }}</span>
           </template>
         </Column>
         <Column
@@ -523,6 +518,7 @@ import { handleError, showSuccess, showWarning } from "../utils/errorHandler";
 import { useBusinessStore } from "../stores/businessStore";
 import { printInvoice } from "../utils/printInvoice";
 import { downloadInvoicePDF } from "../utils/downloadPDF";
+import { formatDateTime } from "../utils/dateUtils";
 
 import SalesCustomerForm from "../components/sales/SalesCustomerForm.vue";
 import SalesItemsTable from "../components/sales/SalesItemsTable.vue";

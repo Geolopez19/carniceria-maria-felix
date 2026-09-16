@@ -128,6 +128,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useCompanyStore } from '../../stores/companyStore'
+import { formatDateTime } from '../../utils/dateUtils'
 
 const companyStore = useCompanyStore()
 
@@ -178,11 +179,7 @@ const formatCurrency = (value) => {
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return ''
-  return new Date(dateString).toLocaleString('es-NI', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  })
+  return formatDateTime(dateString)
 }
 </script>
 
