@@ -92,17 +92,26 @@
             />
           </template>
         </Column>
-        <Column field="unit_price" header="Precio" style="width: 140px">
+        <Column field="unit_price" header="Precio" style="width: 150px">
           <template #body="{ data }">
-            <InputNumber
-              v-model="data.unit_price"
-              :disabled="readOnly"
-              mode="currency"
-              currency="NIO"
-              locale="es-NI"
-              @update:modelValue="updateItemTotal(data)"
-              class="w-full p-inputtext-sm"
-            />
+            <div class="flex flex-col gap-0.5">
+              <InputNumber
+                v-model="data.unit_price"
+                :disabled="readOnly"
+                mode="currency"
+                currency="NIO"
+                locale="es-NI"
+                :min="0"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
+                :class="{ '!border-rose-500 !bg-rose-50/50': !readOnly && (!data.unit_price || Number(data.unit_price) <= 0) }"
+                @update:modelValue="updateItemTotal(data)"
+                class="w-full p-inputtext-sm"
+              />
+              <span v-if="!readOnly && (!data.unit_price || Number(data.unit_price) <= 0)" class="text-[10px] text-rose-500 font-bold flex items-center gap-0.5 animate-pulse">
+                <i class="pi pi-exclamation-circle text-[9px]"></i> Precio requerido
+              </span>
+            </div>
           </template>
         </Column>
         <Column field="tax_rate" header="Impuesto" style="width: 140px" headerClass="text-center">
@@ -343,6 +352,10 @@ const addProduct = (p) => {
       tax_rate,
       line_total: base + base * (tax_rate / 100),
     });
+
+    if (unit_price <= 0) {
+      showWarning(`El producto "${p.nombre}" tiene precio en C$0.00. Ingrese el precio antes de facturar.`);
+    }
   }
 
   emit("update:items", newItems);
@@ -376,6 +389,10 @@ const addPackageItem = (pkg) => {
     package_id: pkg.id
   });
 
+  if (unit_price <= 0) {
+    showWarning(`El paquete "${pkg.producto.nombre}" tiene precio en C$0.00. Ingrese el precio antes de facturar.`);
+  }
+
   emit("update:items", newItems);
 };
 
@@ -405,6 +422,10 @@ const confirmarPeso = () => {
       tax_rate,
       line_total: base + base * (tax_rate / 100),
     });
+
+    if (unit_price <= 0) {
+      showWarning(`El producto "${p.nombre}" tiene precio en C$0.00. Ingrese el precio antes de facturar.`);
+    }
   }
 
   emit("update:items", newItems);

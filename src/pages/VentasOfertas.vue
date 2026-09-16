@@ -714,7 +714,27 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
     return false;
   }
   if (items.value.length === 0) {
-    showWarning("Agrega productos");
+    showWarning("Agrega productos a la oferta");
+    return false;
+  }
+
+  // Validación: Ningún producto puede tener precio 0 o inválido
+  const invalidPriceItem = items.value.find((i) => !i.unit_price || Number(i.unit_price) <= 0);
+  if (invalidPriceItem) {
+    showWarning(`El producto "${invalidPriceItem.product_name}" tiene precio en C$0.00. Ingrese un precio válido antes de generar la oferta.`);
+    return false;
+  }
+
+  // Validación: Cantidad debe ser mayor a 0
+  const invalidQtyItem = items.value.find((i) => !i.qty || Number(i.qty) <= 0);
+  if (invalidQtyItem) {
+    showWarning(`El producto "${invalidQtyItem.product_name}" tiene una cantidad inválida.`);
+    return false;
+  }
+
+  // Validación: Total debe ser mayor a 0
+  if (Number(totals.value.total || 0) <= 0) {
+    showWarning("El monto total de la oferta debe ser mayor a C$0.00.");
     return false;
   }
 
@@ -749,33 +769,45 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
 
     await upsertItems(items.value.map((i) => ({ ...i, order_id: orderId })));
 
+    const isMotoTech = localStorage.getItem('active_company_id') === 'mototech';
+
     const patchPayload = {
-      ...totals.value,
-      customer_id: customerId.value,
-      customer_name: customer.value.name,
-      customer_phone: customer.value.phone,
-      customer_email: customer.value.email,
+      subtotal: Number(totals.value.subtotal) || 0,
+      discount_total: Number(totals.value.discount_total) || 0,
+      tax_total: Number(totals.value.tax_total) || 0,
+      total: Number(totals.value.total) || 0,
+      customer_id: customerId.value && typeof customerId.value === 'string' && customerId.value.length > 10 ? customerId.value : null,
+      customer_name: customer.value.name?.trim() || 'Cliente General',
+      customer_phone: customer.value.phone?.trim() || null,
+      customer_email: customer.value.email?.trim() || null,
       payment_method: paymentMethod.value || null,
-      apply_tax: applyTax.value,
-      is_gym: isGym.value,
-      amount_received: amountReceived.value,
-      change_given: changeGiven.value,
+      apply_tax: Boolean(applyTax.value),
+      amount_received: Number(amountReceived.value) || 0,
+      change_given: Number(changeGiven.value) || 0,
     };
+
+    if (!isMotoTech) {
+      patchPayload.discount_percent = Number(totals.value.discount_percent) || 0;
+      patchPayload.is_gym = Boolean(isGym.value);
+    }
 
     let updated;
     try {
       updated = await patchOrder(orderId, patchPayload);
     } catch (patchErr) {
-      // Reintentar descartando columnas que podrían no existir en schemas anteriores
+      console.warn("Reintentando guardar orden con payload reducido:", patchErr);
+      // Reintentar descartando columnas opcionales que podrían no existir en el esquema
       const fallbackPayload = { ...patchPayload };
+      delete fallbackPayload.discount_percent;
+      delete fallbackPayload.is_gym;
       delete fallbackPayload.amount_received;
       delete fallbackPayload.change_given;
-      delete fallbackPayload.is_gym;
       try {
         updated = await patchOrder(orderId, fallbackPayload);
       } catch (secondErr) {
         delete fallbackPayload.apply_tax;
         delete fallbackPayload.payment_method;
+        delete fallbackPayload.customer_id;
         updated = await patchOrder(orderId, fallbackPayload);
       }
     }
@@ -802,6 +834,18 @@ const saveOffer = async (options = { closeDrawerOnSuccess: true }) => {
 const executeFinalizeOrder = async () => {
   try {
     isSaving.value = true;
+
+    // Validación previa de ítems con precio 0 o total 0
+    const invalidPriceItem = items.value.find((i) => !i.unit_price || Number(i.unit_price) <= 0);
+    if (invalidPriceItem) {
+      showWarning(`No se puede facturar: El producto "${invalidPriceItem.product_name}" tiene precio en C$0.00.`);
+      return;
+    }
+    if (Number(totals.value.total || 0) <= 0) {
+      showWarning("No se puede facturar una venta con total C$0.00.");
+      return;
+    }
+
     const saved = await saveOffer({ closeDrawerOnSuccess: false });
     if (!saved) return;
 
@@ -851,9 +895,30 @@ const handleFacturar = async () => {
     return;
   }
   if (items.value.length === 0) {
-    showWarning("Agrega productos");
+    showWarning("Agrega productos para facturar");
     return;
   }
+
+  // Validación: Ningún producto puede tener precio 0 o inválido
+  const invalidPriceItem = items.value.find((i) => !i.unit_price || Number(i.unit_price) <= 0);
+  if (invalidPriceItem) {
+    showWarning(`No se puede facturar: El producto "${invalidPriceItem.product_name}" tiene precio en cero (0). Ingrese un precio válido.`);
+    return;
+  }
+
+  // Validación: Cantidad debe ser mayor a 0
+  const invalidQtyItem = items.value.find((i) => !i.qty || Number(i.qty) <= 0);
+  if (invalidQtyItem) {
+    showWarning(`No se puede facturar: El producto "${invalidQtyItem.product_name}" tiene una cantidad inválida.`);
+    return;
+  }
+
+  // Validación: Total debe ser mayor a 0
+  if (Number(totals.value.total || 0) <= 0) {
+    showWarning("No se puede facturar: El monto total de la venta debe ser mayor a C$0.00.");
+    return;
+  }
+
   if (!paymentMethod.value) {
     paymentMethodError.value = true;
     showWarning("Seleccione un método de pago.");

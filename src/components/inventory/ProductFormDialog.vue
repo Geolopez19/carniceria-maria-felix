@@ -441,6 +441,11 @@ async function save() {
     return
   }
 
+  if (!form.value.precio || Number(form.value.precio) <= 0) {
+    handleError(new Error('El precio de venta del producto debe ser mayor a 0'))
+    return
+  }
+
   try {
     loading.value = true
     let result

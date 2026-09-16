@@ -766,6 +766,12 @@ const handleGuardarApartado = async () => {
     return
   }
 
+  const invalidPriceItem = nuevoForm.value.items.find(i => !i.unit_price || Number(i.unit_price) <= 0)
+  if (invalidPriceItem) {
+    showWarning(`El producto "${invalidPriceItem.product_name}" tiene un precio de C$0.00. Ingresa un precio válido.`)
+    return
+  }
+
   try {
     isSaving.value = true
     const sanitizedItems = nuevoForm.value.items.map(i => ({
