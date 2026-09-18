@@ -22,15 +22,15 @@
             </Card>
             <Card class="bg-green-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-green-600 uppercase">Stock Total</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-green-900">{{ metricas.stockTotal }}</span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-green-900">{{ Number(metricas.stockTotal || 0).toLocaleString('es-NI', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }}</span></template>
             </Card>
             <Card class="bg-indigo-50 border-none shadow-sm">
-              <template #title><span class="text-xs md:text-sm font-medium text-indigo-600 uppercase">Valor Total</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-indigo-900">C${{ metricas.valorTotal.toLocaleString('es-NI') }}</span></template>
+              <template #title><span class="text-xs md:text-sm font-medium text-indigo-600 uppercase">Valor Venta</span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-indigo-900">C${{ metricas.valorTotal.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span></template>
             </Card>
-            <Card class="bg-red-50 border-none shadow-sm">
-              <template #title><span class="text-xs md:text-sm font-medium text-red-600 uppercase">Bajo Stock</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-red-600">{{ metricas.bajoStock }}</span></template>
+            <Card class="bg-purple-50 border-none shadow-sm">
+              <template #title><span class="text-xs md:text-sm font-medium text-purple-700 uppercase">Inversión (Costo)</span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-purple-900">C${{ (metricas.inversionTotal || 0).toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span></template>
             </Card>
           </div>
 
@@ -100,6 +100,11 @@
                   </div>
                 </template>
               </Column>
+              <Column field="costo" header="Precio de compra" sortable>
+                <template #body="{ data }">
+                  <span class="font-mono text-xs font-semibold text-slate-600">{{ formatCurrency(data.costo || 0) }}</span>
+                </template>
+              </Column>
               <Column field="precio" header="Precio" sortable>
                 <template #body="{ data }">
                   <span class="font-bold text-slate-800">{{ formatCurrency(data.precio) }}</span>
@@ -164,7 +169,11 @@
                   />
                 </template>
               </Column>
-              <Column field="cantidad" header="Cant." sortable class="text-center"></Column>
+              <Column field="cantidad" header="Cant." sortable class="text-center">
+                <template #body="{ data }">
+                  <span class="font-medium">{{ Number(data.cantidad || 0).toLocaleString('es-NI', { maximumFractionDigits: 4 }) }}</span>
+                </template>
+              </Column>
               <Column field="stock_nuevo" header="Stock Final" class="text-center font-bold"></Column>
               <Column field="motivo" header="Motivo" class="hidden lg:table-cell"></Column>
             </DataTable>
@@ -996,8 +1005,10 @@ const cargarMetricasYCategorias = async () => {
   try {
     const res = await getProductos({ limit: 1000 })
     const todos = res.data
-    metricas.value.stockTotal = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
+    const rawStock = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
+    metricas.value.stockTotal = Math.round(rawStock * 100) / 100
     metricas.value.valorTotal = todos.reduce((a, b) => a + Number(b.precio || 0) * Number(b.stock || 0), 0)
+    metricas.value.inversionTotal = todos.reduce((a, b) => a + Number(b.costo || 0) * Number(b.stock || 0), 0)
     metricas.value.bajoStock = todos.filter(p => (p.stock || 0) < 10).length
     todasLasCategorias.value = [...new Set(todos.map(p => p.categoria).filter(Boolean))]
   } catch (err) {

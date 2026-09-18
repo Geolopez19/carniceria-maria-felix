@@ -171,7 +171,7 @@
       </div>
 
       <!-- Stock y Precio para CARNICERÍA -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-else-if="mode === 'editar'">
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4" v-else-if="mode === 'editar'">
         <div class="flex flex-col gap-2">
           <label for="stock_granel" class="font-semibold text-sm">Stock a Granel ({{ form.unidad_medida || 'lbs' }})</label>
           <InputNumber 
@@ -194,6 +194,22 @@
           />
         </div>
         <div class="flex flex-col gap-2">
+          <label for="costo" class="font-semibold text-sm flex items-center gap-1">
+            <i class="pi pi-shopping-cart text-amber-600"></i> Precio de compra
+          </label>
+          <InputNumber 
+            id="costo" 
+            v-model="form.costo" 
+            mode="currency" 
+            currency="NIO" 
+            locale="es-NI" 
+            :minFractionDigits="2" 
+            :maxFractionDigits="2" 
+            placeholder="0.00"
+            fluid 
+          />
+        </div>
+        <div class="flex flex-col gap-2">
           <label for="precio" class="font-semibold text-sm">Precio por {{ getUnidadLabel(form.unidad_medida) }}</label>
           <InputNumber 
             id="precio" 
@@ -207,7 +223,7 @@
           />
         </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" v-else>
         <div class="flex flex-col gap-2">
           <label for="stock" class="font-semibold text-sm">Stock Inicial ({{ form.unidad_medida || 'lbs' }})</label>
           <InputNumber 
@@ -216,6 +232,22 @@
             :minFractionDigits="0" 
             :maxFractionDigits="2" 
             placeholder="0.00" 
+            fluid 
+          />
+        </div>
+        <div class="flex flex-col gap-2">
+          <label for="costo" class="font-semibold text-sm flex items-center gap-1">
+            <i class="pi pi-shopping-cart text-amber-600"></i> Precio de compra
+          </label>
+          <InputNumber 
+            id="costo" 
+            v-model="form.costo" 
+            mode="currency" 
+            currency="NIO" 
+            locale="es-NI" 
+            :minFractionDigits="2" 
+            :maxFractionDigits="2" 
+            placeholder="0.00"
             fluid 
           />
         </div>

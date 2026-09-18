@@ -177,7 +177,17 @@ const proximaCuota = computed(() => {
   const saldo = currentSaldoPendiente.value
   if (saldo <= 0) return 0
   const plazos = Number(props.apartado?.numero_plazos || props.apartado?.plazos || 3)
-  const cuotaBase = Math.round((total / (plazos > 0 ? plazos : 3)) * 100) / 100
+  
+  // // ponytail: calculate remaining plazos based on abonos made so next quota matches remaining balance
+  let abonosHechos = 0
+  if (Array.isArray(props.apartado?.abonos) && props.apartado.abonos.length > 0) {
+    abonosHechos = props.apartado.abonos.length
+  } else if (Number(props.apartado?.total_abonado || 0) > 0 || (props.abono && props.abono.monto)) {
+    abonosHechos = 1
+  }
+
+  const plazosRestantes = Math.max(1, plazos - abonosHechos)
+  const cuotaBase = Math.round((saldo / plazosRestantes) * 100) / 100
   return Math.min(saldo, cuotaBase)
 })
 

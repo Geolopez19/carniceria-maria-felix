@@ -451,7 +451,7 @@
             <span class="text-[11px] text-cyan-700">Dividido equitativamente entre los {{ nuevoForm.numeroPlazos }} plazos acordados</span>
           </div>
           <span class="font-black text-cyan-950 text-base font-mono">
-            {{ formatCurrency((nuevoTotal - (nuevoForm.primaMonto || 0)) / (nuevoForm.numeroPlazos || 1)) }}
+            {{ formatCurrency((nuevoTotal - (nuevoForm.primaMonto || 0)) / Math.max(1, (nuevoForm.primaMonto > 0 ? (nuevoForm.numeroPlazos - 1) : (nuevoForm.numeroPlazos || 1)))) }}
           </span>
         </div>
       </div>

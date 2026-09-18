@@ -130,7 +130,11 @@ export async function updateProducto(id, producto) {
   const stockNuevoTotal = isMotoTech 
     ? (producto.stock !== undefined ? Number(producto.stock) : stockAnterior)
     : (stockGranelNuevo + stockEmpacadoNuevo)
-  const diferencia = stockNuevoTotal - stockAnterior
+  
+  // Redondear a 4 decimales para prevenir imprecisiones de coma flotante de JS (e.g. 4.44089e-16)
+  const stockNuevoTotalRedondeado = Math.round(stockNuevoTotal * 10000) / 10000
+  const stockAnteriorRedondeado = Math.round(stockAnterior * 10000) / 10000
+  const diferencia = Math.round((stockNuevoTotalRedondeado - stockAnteriorRedondeado) * 10000) / 10000
 
   const payload = {
     nombre: producto.nombre?.trim(),
@@ -171,13 +175,13 @@ export async function updateProducto(id, producto) {
 
   const productoActualizado = data?.[0]
 
-  if (diferencia !== 0 && productoActualizado) {
+  if (Math.abs(diferencia) > 0.0001 && productoActualizado) {
     try {
       await registrarMovimiento({
         producto_id: id,
         producto_nombre: productoActualizado.nombre,
         tipo: diferencia > 0 ? 'entrada' : 'salida',
-        cantidad: Math.abs(diferencia),
+        cantidad: Math.round(Math.abs(diferencia) * 10000) / 10000,
         stock_anterior: stockAnterior,
         stock_nuevo: productoActualizado.stock || stockNuevoTotal,
         motivo: diferencia > 0 ? 'Ajuste de inventario (entrada)' : 'Ajuste de inventario (salida)'

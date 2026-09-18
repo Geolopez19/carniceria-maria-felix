@@ -22,7 +22,7 @@
             </Card>
             <Card class="bg-amber-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-amber-700 uppercase">Stock Total</span></template>
-              <template #content><span class="text-xl md:text-2xl font-bold text-amber-900">{{ metricas.stockTotal }} <span class="text-xs font-normal text-amber-600">und</span></span></template>
+              <template #content><span class="text-xl md:text-2xl font-bold text-amber-900">{{ Number(metricas.stockTotal || 0).toLocaleString('es-NI', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }} <span class="text-xs font-normal text-amber-600">und</span></span></template>
             </Card>
             <Card class="bg-purple-50 border-none shadow-sm">
               <template #title><span class="text-xs md:text-sm font-medium text-purple-700 uppercase">Inversión (Costo)</span></template>
@@ -190,7 +190,11 @@
                   />
                 </template>
               </Column>
-              <Column field="cantidad" header="Cant." sortable class="text-center"></Column>
+              <Column field="cantidad" header="Cant." sortable class="text-center">
+                <template #body="{ data }">
+                  <span class="font-medium">{{ Number(data.cantidad || 0).toLocaleString('es-NI', { maximumFractionDigits: 4 }) }}</span>
+                </template>
+              </Column>
               <Column field="stock_nuevo" header="Stock Final" class="text-center font-bold"></Column>
               <Column field="motivo" header="Motivo" class="hidden lg:table-cell"></Column>
             </DataTable>
@@ -1022,7 +1026,8 @@ const cargarMetricasYCategorias = async () => {
   try {
     const res = await getProductos({ limit: 1000 })
     const todos = res.data
-    const totalStock = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
+    const rawStock = todos.reduce((a, b) => a + Number(b.stock || 0), 0)
+    const totalStock = Math.round(rawStock * 100) / 100
     const valorVenta = todos.reduce((a, b) => a + Number(b.precio || 0) * Number(b.stock || 0), 0)
     const inversion = todos.reduce((a, b) => a + Number(b.costo || 0) * Number(b.stock || 0), 0)
 
