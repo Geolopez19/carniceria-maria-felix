@@ -366,26 +366,26 @@ BEGIN
     -- Ventas por día
     SELECT COALESCE(jsonb_agg(d), '[]'::jsonb) INTO v_ventas_por_dia
     FROM (
-        SELECT DATE(COALESCE(paid_at, created_at))::text AS fecha,
+        SELECT DATE(COALESCE(paid_at, created_at) AT TIME ZONE 'America/Managua')::text AS fecha,
                COUNT(id) AS cantidad,
                SUM(total) AS total
         FROM public.sales_orders
         WHERE status = 'paid'
           AND COALESCE(paid_at, created_at) BETWEEN p_fecha_inicio AND p_fecha_fin
-        GROUP BY DATE(COALESCE(paid_at, created_at))
+        GROUP BY DATE(COALESCE(paid_at, created_at) AT TIME ZONE 'America/Managua')
         ORDER BY fecha ASC
     ) d;
 
     -- Compras por día
     SELECT COALESCE(jsonb_agg(d), '[]'::jsonb) INTO v_compras_por_dia
     FROM (
-        SELECT DATE(COALESCE(completed_at, created_at))::text AS fecha,
+        SELECT DATE(COALESCE(completed_at, created_at) AT TIME ZONE 'America/Managua')::text AS fecha,
                COUNT(id) AS cantidad,
                SUM(total) AS total
         FROM public.purchase_orders
         WHERE status = 'completed'
           AND COALESCE(completed_at, created_at) BETWEEN p_fecha_inicio AND p_fecha_fin
-        GROUP BY DATE(COALESCE(completed_at, created_at))
+        GROUP BY DATE(COALESCE(completed_at, created_at) AT TIME ZONE 'America/Managua')
         ORDER BY fecha ASC
     ) d;
 

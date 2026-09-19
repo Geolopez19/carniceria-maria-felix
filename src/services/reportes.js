@@ -312,13 +312,15 @@ export async function getProductosMasVendidos(fechaInicio, fechaFin, limit = 10)
     .slice(0, limit)
 }
 
+import { getLocalDateString } from '../utils/dateUtils'
+
 export async function getVentasPorDia(fechaInicio, fechaFin) {
   const ventas = await getVentasPorFecha(fechaInicio, fechaFin)
   const porDia = {}
   ventas.forEach(venta => {
     const fechaVenta = venta.paid_at || venta.created_at
     if (!fechaVenta) return
-    const fecha = new Date(fechaVenta).toISOString().split('T')[0]
+    const fecha = getLocalDateString(fechaVenta)
     if (!porDia[fecha]) {
       porDia[fecha] = { fecha, cantidad: 0, total: 0 }
     }
@@ -333,7 +335,7 @@ export async function getComprasPorDia(fechaInicio, fechaFin) {
   const porDia = {}
   compras.forEach(compra => {
     if (!compra.completed_at) return
-    const fecha = new Date(compra.completed_at).toISOString().split('T')[0]
+    const fecha = getLocalDateString(compra.completed_at)
     if (!porDia[fecha]) {
       porDia[fecha] = { fecha, cantidad: 0, total: 0 }
     }
@@ -344,17 +346,15 @@ export async function getComprasPorDia(fechaInicio, fechaFin) {
 }
 
 export function getFechaInicioMes(fecha = new Date()) {
-  const año = fecha.getFullYear()
-  const mes = fecha.getMonth()
-  return new Date(año, mes, 1).toISOString().split('T')[0]
+  const d = new Date(fecha.getFullYear(), fecha.getMonth(), 1, 0, 0, 0, 0)
+  return d.toISOString()
 }
 
 export function getFechaFinMes(fecha = new Date()) {
   const año = fecha.getFullYear()
   const mes = fecha.getMonth()
   const ultimoDia = new Date(año, mes + 1, 0).getDate()
-  const fechaFin = new Date(año, mes, ultimoDia)
-  fechaFin.setHours(23, 59, 59, 999)
+  const fechaFin = new Date(año, mes, ultimoDia, 23, 59, 59, 999)
   return fechaFin.toISOString()
 }
 
