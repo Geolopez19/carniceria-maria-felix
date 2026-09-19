@@ -103,9 +103,13 @@ export async function getInvoicePDF({ order, items, business }) {
     pdf.setTextColor(...TEXT_GRAY)
     pdf.setFontSize(10)
     pdf.setFont('helvetica', 'bold')
-    const isTransf = String(order.payment_method).toLowerCase() === 'transferencia'
-    const pm = isTransf ? 'TRANSFERENCIA (REF. BANCARIA)' : String(order.payment_method).toUpperCase()
-    pdf.text(`Método de Pago: ${pm}`, 20, yPos)
+    let pm = String(order.payment_method).toUpperCase()
+    if (String(order.payment_method).toLowerCase() === 'transferencia') {
+      pm = 'TRANSFERENCIA (REF. BANCARIA)'
+    } else if (String(order.payment_method).toLowerCase() === 'credito') {
+      pm = 'CRÉDITO (PENDIENTE DE PAGO)'
+    }
+    pdf.text(`Condición / Método de Pago: ${pm}`, 20, yPos)
   }
 
   // --- TABLA PRODUCTOS ---

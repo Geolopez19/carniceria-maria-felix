@@ -95,10 +95,14 @@
             />
           </template>
         </Column>
-        <Column field="payment_method" header="Pago" style="min-width: 130px">
+        <Column field="payment_method" header="Pago" style="min-width: 140px">
           <template #body="{ data }">
-            <span v-if="data.payment_method" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-              <i :class="getPaymentMethodIcon(data.payment_method)" class="text-indigo-600 text-[11px]"></i>
+            <span 
+              v-if="data.payment_method" 
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+              :class="data.payment_method === 'credito' ? 'bg-amber-50 text-amber-700 border border-amber-300 font-bold' : 'bg-slate-100 text-slate-700 border border-slate-200'"
+            >
+              <i :class="[getPaymentMethodIcon(data.payment_method), data.payment_method === 'credito' ? 'text-amber-600' : 'text-indigo-600']" class="text-[11px]"></i>
               {{ getPaymentMethodLabel(data.payment_method) }}
             </span>
             <span v-else class="text-xs text-slate-400 italic">—</span>
@@ -551,6 +555,7 @@ const vTooltip = Tooltip;
 // Opciones de métodos de pago
 const paymentMethodOptions = [
   { label: "Efectivo", value: "efectivo", icon: "pi pi-money-bill" },
+  { label: "Crédito (Pendiente de Pago)", value: "credito", icon: "pi pi-clock" },
   { label: "Tarjeta", value: "tarjeta", icon: "pi pi-credit-card" },
   { label: "Transferencia bancaria", value: "transferencia", icon: "pi pi-send" },
   { label: "Otro", value: "otro", icon: "pi pi-ellipsis-h" },
@@ -927,7 +932,23 @@ const handleFacturar = async () => {
     return;
   }
 
-  // Si no es efectivo, confirmar directamente
+  // Si el método es CRÉDITO (Pendiente de pago)
+  if (paymentMethod.value === "credito") {
+    confirm.require({
+      message: "¿Facturar esta venta al CRÉDITO (Pendiente de Pago)? Se descontará del inventario.",
+      header: "Confirmar Venta al Crédito",
+      icon: "pi pi-clock",
+      acceptLabel: "Sí, facturar crédito",
+      rejectLabel: "Cancelar",
+      acceptClass: "p-button-warning",
+      accept: async () => {
+        await executeFinalizeOrder();
+      },
+    });
+    return;
+  }
+
+  // Si no es efectivo ni crédito (tarjeta, transferencia, etc.), confirmar directamente
   confirm.require({
     message: "¿Convertir esta oferta en factura? Se descontará del stock.",
     header: "Confirmar Facturación",

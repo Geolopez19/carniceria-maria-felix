@@ -35,7 +35,9 @@
       </div>
       <div class="flex justify-between" v-if="order?.payment_method">
         <span class="font-bold">Pago:</span>
-        <span class="font-semibold uppercase">{{ order.payment_method }}</span>
+        <span class="font-extrabold uppercase" :class="{'text-black underline': order.payment_method === 'credito'}">
+          {{ order.payment_method === 'credito' ? 'CRÉDITO (PENDIENTE)' : order.payment_method }}
+        </span>
       </div>
     </div>
 

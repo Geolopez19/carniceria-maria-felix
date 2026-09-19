@@ -77,10 +77,14 @@
             />
           </template>
         </Column>
-        <Column field="payment_method" header="Pago" style="min-width: 130px">
+        <Column field="payment_method" header="Pago" style="min-width: 140px">
           <template #body="{ data }">
-            <span v-if="data.payment_method" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <i :class="getPaymentMethodIcon(data.payment_method)" class="text-emerald-600 text-[11px]"></i>
+            <span 
+              v-if="data.payment_method" 
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold"
+              :class="data.payment_method === 'credito' ? 'bg-amber-50 text-amber-800 border border-amber-300 font-bold' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'"
+            >
+              <i :class="[getPaymentMethodIcon(data.payment_method), data.payment_method === 'credito' ? 'text-amber-600' : 'text-emerald-600']" class="text-[11px]"></i>
               {{ getPaymentMethodLabel(data.payment_method) }}
             </span>
             <span v-else class="text-xs text-slate-400 italic">—</span>
@@ -476,6 +480,7 @@ const vTooltip = Tooltip;
 // Opciones de métodos de pago
 const paymentMethodOptions = [
   { label: "Efectivo", value: "efectivo", icon: "pi pi-money-bill" },
+  { label: "Crédito (Pendiente de Pago)", value: "credito", icon: "pi pi-clock" },
   { label: "Tarjeta", value: "tarjeta", icon: "pi pi-credit-card" },
   { label: "Transferencia bancaria", value: "transferencia", icon: "pi pi-send" },
   { label: "Otro", value: "otro", icon: "pi pi-ellipsis-h" },
