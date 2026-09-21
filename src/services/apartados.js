@@ -52,7 +52,8 @@ export async function crearApartado({
   primaMonto = 0,
   paymentMethod = 'efectivo',
   amountReceived = 0,
-  changeGiven = 0
+  changeGiven = 0,
+  fechaEmision = null
 }) {
   const supabase = getActiveSupabase()
   const { data, error } = await supabase.rpc('fn_crear_apartado', {
@@ -69,6 +70,28 @@ export async function crearApartado({
   })
 
   if (error) throw error
+
+  // Si se especificó fecha de emisión personalizada, actualizar created_at en la tabla apartados y en la prima
+  if (fechaEmision && data?.id) {
+    try {
+      const fechaIso = new Date(fechaEmision.includes('T') ? fechaEmision : `${fechaEmision}T12:00:00`).toISOString()
+      await supabase
+        .from('apartados')
+        .update({ created_at: fechaIso })
+        .eq('id', data.id)
+      data.created_at = fechaIso
+
+      // Si se creó abono de prima inicial, actualizar también su fecha
+      await supabase
+        .from('apartados_abonos')
+        .update({ created_at: fechaIso })
+        .eq('apartado_id', data.id)
+        .eq('numero_abono', 1)
+    } catch (e) {
+      console.warn('Error actualizando fecha de emisión del apartado:', e)
+    }
+  }
+
   return data
 }
 
@@ -193,7 +216,8 @@ export async function actualizarApartado({
   fechaLimite,
   numeroPlazos = 3,
   notas,
-  items
+  items,
+  fechaEmision = null
 }) {
   const supabase = getActiveSupabase()
 
@@ -324,6 +348,10 @@ export async function actualizarApartado({
     saldo_pendiente: newSaldoPendiente,
     status: newStatus,
     updated_at: new Date().toISOString()
+  }
+
+  if (fechaEmision) {
+    updatePayload.created_at = new Date(fechaEmision.includes('T') ? fechaEmision : `${fechaEmision}T12:00:00`).toISOString()
   }
 
   const { data: updatedApt, error: updErr } = await supabase

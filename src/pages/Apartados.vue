@@ -163,6 +163,15 @@
           </template>
         </Column>
 
+        <Column field="created_at" header="Emisión" style="width: 110px">
+          <template #body="{ data }">
+            <span class="text-xs font-semibold text-slate-600" v-if="data.created_at">
+              {{ formatDateOnly(data.created_at) }}
+            </span>
+            <span v-else class="text-xs text-slate-400">—</span>
+          </template>
+        </Column>
+
         <Column field="fecha_limite" header="Límite" style="width: 110px">
           <template #body="{ data }">
             <span class="text-xs font-semibold text-slate-600" v-if="data.fecha_limite">
@@ -411,8 +420,12 @@
           </div>
         </div>
 
-        <!-- Fecha Límite, Plazos y Método de Pago -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Fecha Emisión, Fecha Límite, Plazos y Método de Pago -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Emisión</label>
+            <InputText type="date" v-model="nuevoForm.fechaEmision" class="w-full text-sm font-bold text-amber-900" />
+          </div>
           <div>
             <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Límite</label>
             <InputText type="date" v-model="nuevoForm.fechaLimite" class="w-full text-sm" />
@@ -846,6 +859,7 @@ const openNuevoApartadoModal = () => {
   nuevoForm.value = {
     customerName: '',
     customerPhone: '',
+    fechaEmision: getLocalDateString(new Date()),
     fechaLimite: getLocalDateString(nextMonth),
     paymentMethod: 'efectivo',
     primaMonto: 0,
@@ -864,6 +878,7 @@ const openEditarModal = (apartado) => {
   nuevoForm.value = {
     customerName: apartado.customer_name || '',
     customerPhone: apartado.customer_phone || '',
+    fechaEmision: getLocalDateString(apartado.created_at || new Date()),
     fechaLimite: apartado.fecha_limite || '',
     numeroPlazos: Number(apartado.numero_plazos || storedPlazos || 3),
     paymentMethod: 'efectivo',
@@ -933,6 +948,7 @@ const handleGuardarApartado = async () => {
         apartadoId: editingApartado.value.id,
         customerName: nuevoForm.value.customerName.trim(),
         customerPhone: nuevoForm.value.customerPhone?.trim() || null,
+        fechaEmision: nuevoForm.value.fechaEmision || null,
         fechaLimite: nuevoForm.value.fechaLimite || null,
         numeroPlazos: Number(nuevoForm.value.numeroPlazos || 3),
         notas: nuevoForm.value.notas?.trim() || null,
@@ -950,6 +966,7 @@ const handleGuardarApartado = async () => {
         customerId: null,
         customerName: nuevoForm.value.customerName.trim(),
         customerPhone: nuevoForm.value.customerPhone?.trim() || null,
+        fechaEmision: nuevoForm.value.fechaEmision || null,
         fechaLimite: nuevoForm.value.fechaLimite || null,
         numeroPlazos: Number(nuevoForm.value.numeroPlazos || 3),
         notas: nuevoForm.value.notas?.trim() || null,

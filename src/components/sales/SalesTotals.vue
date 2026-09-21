@@ -17,7 +17,7 @@
     <div class="p-4 space-y-2 bg-white">
       <!-- Base/Subtotal display -->
       <div v-if="!applyTax && isGym" class="flex justify-between items-center py-1.5 border-b border-slate-100">
-        <span class="font-semibold text-slate-600 text-sm">Precio regular (con IVA):</span>
+        <span class="font-semibold text-slate-600 text-sm">Precio regular:</span>
         <span class="text-base font-bold text-slate-800">{{ formatCurrency(totals.subtotal * (1 + IVA_PORCENTAJE / 100)) }}</span>
       </div>
       <div v-else class="flex justify-between items-center py-1.5 border-b border-slate-100">

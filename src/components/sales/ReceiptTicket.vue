@@ -77,7 +77,7 @@
       </div>
       
       <div class="flex justify-between" v-if="order?.is_gym">
-        <span>Precio regular (con IVA):</span>
+        <span>Precio regular:</span>
         <span class="font-bold">{{ formatCurrency(totalAmount * 1.15) }}</span>
       </div>
       <div class="flex justify-between" v-else>
