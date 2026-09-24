@@ -159,6 +159,7 @@
 import { computed, ref } from 'vue'
 import { useCompanyStore } from '../../stores/companyStore'
 import { formatDateTime, formatDateOnly } from '../../utils/dateUtils'
+import { extractPlazos } from '../../services/apartados'
 
 const companyStore = useCompanyStore()
 const voucherRef = ref(null)
@@ -218,7 +219,7 @@ const isLiquidado = computed(() => {
 })
 
 const numPlazos = computed(() => {
-  return Number(props.apartado?.numero_plazos || props.apartado?.plazos || 3)
+  return extractPlazos(props.apartado)
 })
 
 const proximaCuota = computed(() => {

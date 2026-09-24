@@ -1,12 +1,14 @@
 <template>
   <div class="p-2 sm:p-4 md:p-6 max-w-7xl mx-auto">
     <!-- Ticket Térmico Imprimible Oculto -->
-    <ReceiptAbonoTicket
-      :apartado="printData.apartado"
-      :abono="printData.abono"
-      :items="printData.items"
-      :business="businessStore.settings"
-    />
+    <div class="hidden print:block fixed inset-0 bg-white z-[9999] print-container">
+      <ReceiptAbonoTicket
+        :apartado="printData.apartado"
+        :abono="printData.abono"
+        :items="printData.items"
+        :business="businessStore.settings"
+      />
+    </div>
 
     <!-- Contenedor Oculto para Generación de Imagen PNG en Alta Resolución -->
     <div class="fixed -left-[9999px] -top-[9999px] pointer-events-none" style="width: 440px;">
@@ -263,15 +265,15 @@
                 title="Ver Historial de Abonos"
               />
 
-              <!-- Cancelar -->
+              <!-- Botón Devolución Completa / Cancelar -->
               <Button
-                v-if="data.status === 'activo'"
-                icon="pi pi-times"
+                v-if="data.status !== 'cancelado'"
+                icon="pi pi-undo"
                 severity="danger"
                 text
                 rounded
-                @click="confirmarCancelar(data)"
-                title="Cancelar Apartado"
+                @click="openDevolucionModal(data)"
+                :title="data.status === 'entregado' ? 'Devolución de Apartado Entregado / Reingresar al Inventario' : 'Devolución Completa / Reingresar al Inventario'"
               />
             </div>
           </template>
@@ -684,6 +686,102 @@
       </template>
     </Dialog>
 
+    <!-- MODAL 4: DEVOLUCIÓN COMPLETA DE APARTADO -->
+    <Dialog
+      v-model:visible="devolucionModalVisible"
+      header="Devolución Completa de Apartado"
+      modal
+      class="w-full max-w-lg"
+    >
+      <div v-if="devolucionApartado" class="space-y-4 py-2">
+        <div class="bg-rose-50 p-4 rounded-xl border border-rose-200">
+          <div class="flex items-center gap-2 text-rose-800 font-bold text-sm mb-1">
+            <i class="pi pi-exclamation-triangle text-lg"></i>
+            <span>¿Procesar Devolución del Apartado {{ devolucionApartado.codigo_apartado }}?</span>
+          </div>
+          <p class="text-xs text-rose-700">
+            Al confirmar la devolución, los cascos y accesorios apartados se reincorporarán automáticamente al inventario (aumentando su stock disponible).
+          </p>
+          <div v-if="devolucionApartado.status === 'entregado'" class="mt-2 pt-2 border-t border-rose-200 text-xs text-amber-900 font-bold flex items-center gap-1.5">
+            <i class="pi pi-box text-amber-700"></i>
+            <span>Apartado figura como <strong>ENTREGADO</strong>: El cliente devuelve los productos físicos para reincorporarlos al stock del inventario.</span>
+          </div>
+        </div>
+
+        <!-- Resumen del Cliente y Reembolso -->
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-500 font-medium">Cliente:</span>
+            <span class="font-bold text-slate-800">{{ devolucionApartado.customer_name }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500 font-medium">Total del Apartado:</span>
+            <span class="font-bold text-slate-800">{{ formatCurrency(devolucionApartado.total) }}</span>
+          </div>
+          <div class="flex justify-between items-center border-t border-slate-200 pt-2 text-sm">
+            <span class="font-bold text-slate-700">Dinero a Reembolsar al Cliente:</span>
+            <span class="font-black text-emerald-700 text-base">
+              {{ formatCurrency(devolucionApartado.total_abonado) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Productos que vuelven al inventario -->
+        <div>
+          <label class="text-xs font-bold text-slate-700 uppercase block mb-1.5">
+            📦 Productos que reingresan al stock (+ Stock):
+          </label>
+          <div class="bg-slate-50 rounded-xl border border-slate-200 p-2.5 space-y-1.5 max-h-36 overflow-y-auto">
+            <div
+              v-for="it in (devolucionApartado.items || [])"
+              :key="it.id || it.product_id"
+              class="flex justify-between items-center text-xs bg-white p-2 rounded-lg border border-slate-100"
+            >
+              <div class="font-bold text-slate-700 truncate max-w-[280px]">
+                • {{ it.product_name }}
+              </div>
+              <span class="font-bold text-emerald-700 shrink-0 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                +{{ it.qty }} al stock
+              </span>
+            </div>
+            <div v-if="!devolucionApartado.items || devolucionApartado.items.length === 0" class="text-xs text-slate-400 italic">
+              Casco / Accesorio registrado
+            </div>
+          </div>
+        </div>
+
+        <!-- Motivo de la Devolución -->
+        <div>
+          <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Motivo de la Devolución</label>
+          <Select
+            v-model="devolucionMotivoPreset"
+            :options="motivosDevolucionOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full text-xs mb-2"
+          />
+          <InputText
+            v-if="devolucionMotivoPreset === 'otro'"
+            v-model="devolucionMotivoCustom"
+            placeholder="Escribe el motivo de la devolución..."
+            class="w-full text-xs"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button label="Cancelar" text severity="secondary" @click="devolucionModalVisible = false" />
+        <Button
+          label="Confirmar Devolución y Reingresar Stock"
+          icon="pi pi-undo"
+          severity="danger"
+          :loading="isSaving"
+          @click="handleEjecutarDevolucion"
+          class="!font-bold !px-4"
+        />
+      </template>
+    </Dialog>
+
     <!-- Confirm Dialog -->
     <ConfirmDialog></ConfirmDialog>
   </div>
@@ -697,7 +795,9 @@ import {
   actualizarApartado, 
   registrarAbono, 
   cancelarApartado, 
-  marcarEntregado 
+  marcarEntregado,
+  extractPlazos,
+  cleanNotas
 } from '../services/apartados'
 import { getProductos } from '../services/productos'
 import { formatCurrency } from '../utils/calculations'
@@ -782,6 +882,20 @@ const abonoForm = ref({
 // Modal Detalle
 const detalleModalVisible = ref(false)
 
+// Modal Devolución Completa
+const devolucionModalVisible = ref(false)
+const devolucionApartado = ref(null)
+const devolucionMotivoPreset = ref('Desistimiento / Cancelación voluntaria del cliente')
+const devolucionMotivoCustom = ref('')
+
+const motivosDevolucionOptions = [
+  { label: 'Desistimiento / Cancelación voluntaria del cliente', value: 'Desistimiento / Cancelación voluntaria del cliente' },
+  { label: 'Cliente no pudo continuar con los pagos', value: 'Cliente no pudo continuar con los pagos' },
+  { label: 'Cambio de opinión / Solicitó reembolso', value: 'Cambio de opinión / Solicitó reembolso' },
+  { label: 'Vencimiento de fecha límite de apartado', value: 'Vencimiento de fecha límite de apartado' },
+  { label: 'Otro motivo (especificar)', value: 'otro' },
+]
+
 // Estado para impresión térmica
 const printData = ref({
   apartado: null,
@@ -794,10 +908,10 @@ const fetchApartados = async () => {
     isLoading.value = true
     const res = await listApartados({ status: statusFilter.value })
     apartados.value = res.map(a => {
-      const storedPlazos = localStorage.getItem(`apt_plazos_${a.id}`)
+      const plazos = extractPlazos(a)
       return {
         ...a,
-        numero_plazos: Number(a.numero_plazos || storedPlazos || 3)
+        numero_plazos: plazos
       }
     })
   } catch (err) {
@@ -861,6 +975,7 @@ const openNuevoApartadoModal = () => {
     customerPhone: '',
     fechaEmision: getLocalDateString(new Date()),
     fechaLimite: getLocalDateString(nextMonth),
+    numeroPlazos: 3,
     paymentMethod: 'efectivo',
     primaMonto: 0,
     notas: '',
@@ -874,16 +989,16 @@ const openEditarModal = (apartado) => {
   isEditMode.value = true
   editingApartado.value = apartado
 
-  const storedPlazos = localStorage.getItem(`apt_plazos_${apartado.id}`)
+  const plazos = extractPlazos(apartado)
   nuevoForm.value = {
     customerName: apartado.customer_name || '',
     customerPhone: apartado.customer_phone || '',
     fechaEmision: getLocalDateString(apartado.created_at || new Date()),
     fechaLimite: apartado.fecha_limite || '',
-    numeroPlazos: Number(apartado.numero_plazos || storedPlazos || 3),
+    numeroPlazos: plazos,
     paymentMethod: 'efectivo',
     primaMonto: Number(apartado.total_abonado || 0),
-    notas: apartado.notas || '',
+    notas: cleanNotas(apartado.notas),
     items: (apartado.items || []).map(i => ({
       product_id: i.product_id,
       product_name: i.product_name,
@@ -995,10 +1110,14 @@ const handleGuardarApartado = async () => {
           apartado: result,
           abono: {
             monto: Number(nuevoForm.value.primaMonto),
-            saldo_anterior: result.total,
-            saldo_nuevo: result.saldo_pendiente,
+            saldo_anterior: Number(result.total || nuevoTotal.value),
+            saldo_nuevo: Number(result.saldo_pendiente ?? (Number(result.total || nuevoTotal.value) - Number(nuevoForm.value.primaMonto))),
             payment_method: nuevoForm.value.paymentMethod,
-            created_at: new Date()
+            amount_received: Number(nuevoForm.value.primaMonto),
+            change_given: 0,
+            numero_abono: 1,
+            is_prima: true,
+            created_at: result.created_at || new Date()
           },
           items: sanitizedItems
         }
@@ -1045,7 +1164,11 @@ const handleGuardarAbono = async () => {
     abonoModalVisible.value = false
     await fetchApartados()
 
-    const abonoTarget = { ...result.abono }
+    const abonoTarget = { 
+      ...result.abono,
+      amount_received: amountReceived,
+      change_given: changeGiven
+    }
     if (abonoForm.value.fechaAbono) {
       abonoTarget.created_at = abonoForm.value.fechaAbono
     }
@@ -1172,31 +1295,41 @@ const confirmarEntrega = (apartado) => {
   })
 }
 
+const openDevolucionModal = (apartado) => {
+  devolucionApartado.value = apartado
+  devolucionMotivoPreset.value = 'Desistimiento / Cancelación voluntaria del cliente'
+  devolucionMotivoCustom.value = ''
+  devolucionModalVisible.value = true
+}
+
+const handleEjecutarDevolucion = async () => {
+  if (!devolucionApartado.value) return
+  const motivo = devolucionMotivoPreset.value === 'otro' 
+    ? (devolucionMotivoCustom.value?.trim() || 'Otro motivo')
+    : devolucionMotivoPreset.value
+
+  try {
+    isSaving.value = true
+    await cancelarApartado(devolucionApartado.value.id, motivo)
+    showSuccess('Devolución procesada con éxito y stock reincorporado al inventario')
+    devolucionModalVisible.value = false
+    await fetchApartados()
+  } catch (err) {
+    handleError(err, 'Error al procesar la devolución')
+  } finally {
+    isSaving.value = false
+  }
+}
+
 const confirmarCancelar = (apartado) => {
-  confirm.require({
-    message: '¿Cancelar apartado? El casco reservado volverá al stock del inventario.',
-    header: 'Confirmar Cancelación',
-    icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Sí, cancelar apartado',
-    rejectLabel: 'No',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        await cancelarApartado(apartado.id, 'Cancelación voluntaria')
-        showSuccess('Apartado cancelado y stock reincorporado al inventario')
-        await fetchApartados()
-      } catch (err) {
-        handleError(err)
-      }
-    }
-  })
+  openDevolucionModal(apartado)
 }
 
 const getStatusLabel = (st) => ({
   activo: 'Activo (En pagos)',
   liquidado: 'Listo para entregar',
   entregado: 'Entregado',
-  cancelado: 'Cancelado'
+  cancelado: 'Cancelado / Devuelto'
 }[st] || st)
 
 const getStatusSeverity = (st) => ({

@@ -400,10 +400,11 @@ body,
   body * {
     visibility: hidden !important;
   }
-  .print-container, .print-container * {
+  .print-container, .print-container *,
+  .receipt-container, .receipt-container * {
     visibility: visible !important;
   }
-  .print-container {
+  .print-container, .receipt-container {
     position: absolute !important;
     left: 0 !important;
     top: 0 !important;

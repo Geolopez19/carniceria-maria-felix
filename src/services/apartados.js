@@ -41,6 +41,31 @@ export async function getApartadoById(id) {
   return data
 }
 
+export function extractPlazos(apartado) {
+  if (!apartado) return 3
+  if (apartado.numero_plazos && Number(apartado.numero_plazos) > 0) {
+    return Number(apartado.numero_plazos)
+  }
+  if (apartado.notas && typeof apartado.notas === 'string') {
+    const match = apartado.notas.match(/\[PLAZOS:(\d+)\]/)
+    if (match && match[1]) {
+      return Number(match[1])
+    }
+  }
+  if (typeof localStorage !== 'undefined' && apartado.id) {
+    const stored = localStorage.getItem(`apt_plazos_${apartado.id}`)
+    if (stored && Number(stored) > 0) {
+      return Number(stored)
+    }
+  }
+  return 3
+}
+
+export function cleanNotas(notas) {
+  if (!notas || typeof notas !== 'string') return ''
+  return notas.replace(/\[PLAZOS:\d+\]\s*/g, '').trim()
+}
+
 export async function crearApartado({
   customerId,
   customerName,
@@ -56,12 +81,16 @@ export async function crearApartado({
   fechaEmision = null
 }) {
   const supabase = getActiveSupabase()
+  const plazosTag = `[PLAZOS:${numeroPlazos || 3}]`
+  const sanitizedNotas = cleanNotas(notas)
+  const combinedNotas = sanitizedNotas ? `${plazosTag} ${sanitizedNotas}` : plazosTag
+
   const { data, error } = await supabase.rpc('fn_crear_apartado', {
     p_customer_id: customerId,
     p_customer_name: customerName,
     p_customer_phone: customerPhone,
     p_fecha_limite: fechaLimite,
-    p_notas: notas,
+    p_notas: combinedNotas,
     p_items: items,
     p_prima_monto: primaMonto,
     p_payment_method: paymentMethod,
@@ -71,24 +100,46 @@ export async function crearApartado({
 
   if (error) throw error
 
-  // Si se especificó fecha de emisión personalizada, actualizar created_at en la tabla apartados y en la prima
-  if (fechaEmision && data?.id) {
-    try {
+  // Si se creó el apartado, actualizar numero_plazos y fecha de emisión si aplica
+  if (data?.id) {
+    data.numero_plazos = Number(numeroPlazos || 3)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(`apt_plazos_${data.id}`, String(numeroPlazos || 3))
+    }
+
+    const updateObj = { numero_plazos: Number(numeroPlazos || 3) }
+    if (fechaEmision) {
       const fechaIso = new Date(fechaEmision.includes('T') ? fechaEmision : `${fechaEmision}T12:00:00`).toISOString()
-      await supabase
-        .from('apartados')
-        .update({ created_at: fechaIso })
-        .eq('id', data.id)
+      updateObj.created_at = fechaIso
       data.created_at = fechaIso
 
       // Si se creó abono de prima inicial, actualizar también su fecha
+      try {
+        await supabase
+          .from('apartados_abonos')
+          .update({ created_at: fechaIso })
+          .eq('apartado_id', data.id)
+          .eq('numero_abono', 1)
+      } catch (e) {
+        console.warn('Error actualizando fecha de emisión en abonos:', e)
+      }
+    }
+
+    try {
       await supabase
-        .from('apartados_abonos')
-        .update({ created_at: fechaIso })
-        .eq('apartado_id', data.id)
-        .eq('numero_abono', 1)
+        .from('apartados')
+        .update(updateObj)
+        .eq('id', data.id)
     } catch (e) {
-      console.warn('Error actualizando fecha de emisión del apartado:', e)
+      // Si falla por columna numero_plazos inexistente en base de datos, reintentar solo con created_at si aplica
+      if (updateObj.created_at) {
+        try {
+          await supabase
+            .from('apartados')
+            .update({ created_at: updateObj.created_at })
+            .eq('id', data.id)
+        } catch (_) {}
+      }
     }
   }
 
@@ -133,15 +184,82 @@ export async function registrarAbono({
   return data
 }
 
-export async function cancelarApartado(apartadoId, motivo = 'Cancelado por cliente') {
+export async function cancelarApartado(apartadoId, motivo = 'Cancelación / Devolución voluntaria') {
   const supabase = getActiveSupabase()
-  const { data, error } = await supabase.rpc('fn_cancelar_apartado', {
-    p_apartado_id: apartadoId,
-    p_motivo: motivo
-  })
 
-  if (error) throw error
-  return data
+  // 1. Obtener datos completos del apartado con sus items
+  const { data: apt, error: fetchErr } = await supabase
+    .from('apartados')
+    .select('*, items:apartados_items(*)')
+    .eq('id', apartadoId)
+    .single()
+
+  if (fetchErr) throw fetchErr
+
+  // 2. Si el apartado estaba en 'entregado', cancelar la venta asociada en sales_orders si existe
+  if (apt.status === 'entregado' && apt.codigo_apartado) {
+    try {
+      await supabase
+        .from('sales_orders')
+        .update({ status: 'cancelled' })
+        .ilike('customer_name', `%(${apt.codigo_apartado})%`)
+        .eq('status', 'paid')
+    } catch (soErr) {
+      console.warn('Advertencia al cancelar venta asociada en sales_orders:', soErr)
+    }
+  }
+
+  // 3. Reincorporar stock de todos los productos del apartado al inventario directamente
+  if (apt.items && apt.items.length > 0) {
+    for (const item of apt.items) {
+      if (!item.product_id) continue
+      try {
+        const { data: prod } = await supabase
+          .from('productos')
+          .select('id, nombre, stock')
+          .eq('id', item.product_id)
+          .single()
+
+        if (prod) {
+          const qty = Number(item.qty || 1)
+          const stockAnterior = Number(prod.stock || 0)
+          const stockNuevo = stockAnterior + qty
+
+          await supabase
+            .from('productos')
+            .update({ stock: stockNuevo })
+            .eq('id', prod.id)
+
+          await supabase.from('inventario_movimientos').insert({
+            producto_id: prod.id,
+            producto_nombre: prod.nombre,
+            tipo: 'entrada',
+            cantidad: qty,
+            stock_anterior: stockAnterior,
+            stock_nuevo: stockNuevo,
+            motivo: `Devolución / Reintegro de Apartado ${apt.status === 'entregado' ? '(Entregado) ' : ''}#${apt.codigo_apartado || ''} - ${motivo}`
+          })
+        }
+      } catch (stockErr) {
+        console.warn(`Error al reincorporar stock de producto ${item.product_id}:`, stockErr)
+      }
+    }
+  }
+
+  // 4. Actualizar estado del apartado a cancelado
+  const { data: updatedApt, error: updateErr } = await supabase
+    .from('apartados')
+    .update({
+      status: 'cancelado',
+      notas: `${apt.notas ? apt.notas + ' | ' : ''}Devolución completa (${apt.status === 'entregado' ? 'Previamente Entregado' : 'Sin Entrega'}): ${motivo} (Reembolso: C$ ${apt.total_abonado || 0})`,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', apartadoId)
+    .select()
+    .single()
+
+  if (updateErr) throw updateErr
+  return updatedApt
 }
 
 export async function marcarEntregado(apartadoId) {
@@ -339,14 +457,19 @@ export async function actualizarApartado({
   }
 
   // 5. Actualizar encabezado del apartado
+  const plazosTag = `[PLAZOS:${numeroPlazos || 3}]`
+  const sanitizedNotas = cleanNotas(notas)
+  const combinedNotas = sanitizedNotas ? `${plazosTag} ${sanitizedNotas}` : plazosTag
+
   const updatePayload = {
     customer_name: customerName,
     customer_phone: customerPhone,
     fecha_limite: fechaLimite,
-    notas: notas,
+    notas: combinedNotas,
     total: newTotal,
     saldo_pendiente: newSaldoPendiente,
     status: newStatus,
+    numero_plazos: Number(numeroPlazos || 3),
     updated_at: new Date().toISOString()
   }
 
@@ -354,13 +477,38 @@ export async function actualizarApartado({
     updatePayload.created_at = new Date(fechaEmision.includes('T') ? fechaEmision : `${fechaEmision}T12:00:00`).toISOString()
   }
 
-  const { data: updatedApt, error: updErr } = await supabase
-    .from('apartados')
-    .update(updatePayload)
-    .eq('id', apartadoId)
-    .select('*, items:apartados_items(*), abonos:apartados_abonos(*)')
-    .single()
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(`apt_plazos_${apartadoId}`, String(numeroPlazos || 3))
+  }
 
-  if (updErr) throw updErr
+  let updatedApt = null
+  try {
+    const { data: resData, error: updErr } = await supabase
+      .from('apartados')
+      .update(updatePayload)
+      .eq('id', apartadoId)
+      .select('*, items:apartados_items(*), abonos:apartados_abonos(*)')
+      .single()
+
+    if (updErr) throw updErr
+    updatedApt = resData
+  } catch (updErr) {
+    // Si la columna numero_plazos aún no existe en base de datos, reintentar sin ese campo
+    delete updatePayload.numero_plazos
+    const { data: resFallback, error: fallbackErr } = await supabase
+      .from('apartados')
+      .update(updatePayload)
+      .eq('id', apartadoId)
+      .select('*, items:apartados_items(*), abonos:apartados_abonos(*)')
+      .single()
+
+    if (fallbackErr) throw fallbackErr
+    updatedApt = resFallback
+  }
+
+  if (updatedApt) {
+    updatedApt.numero_plazos = Number(numeroPlazos || 3)
+  }
+
   return updatedApt
 }
