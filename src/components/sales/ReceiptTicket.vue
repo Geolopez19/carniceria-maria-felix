@@ -49,7 +49,7 @@
         <div class="col-span-4 text-right">Total</div>
       </div>
       
-      <div v-for="item in items" :key="item.id" class="mb-2 border-b border-dotted border-gray-300 pb-1 last:border-0">
+      <div v-for="item in displayItems" :key="item.id" class="mb-2 border-b border-dotted border-gray-300 pb-1 last:border-0">
         <!-- Nombre del Producto -->
         <div class="font-bold text-xs uppercase leading-tight mb-0.5">
           {{ item.product_name || 'Producto sin nombre' }}
@@ -57,13 +57,13 @@
         <!-- Desglose: Cantidad x Precio Unitario = Total -->
         <div class="grid grid-cols-12 text-xs text-black font-semibold items-center">
           <div class="col-span-5 text-left pl-1">
-            <span class="text-[11px] text-gray-700">P.U:</span> {{ formatCurrency(item.unit_price) }}
+            <span class="text-[11px] text-gray-700">P.U:</span> {{ formatCurrency(item.unitPrice) }}
           </div>
           <div class="col-span-3 text-center font-bold">
             x {{ item.qty }}
           </div>
           <div class="col-span-4 text-right font-extrabold text-black">
-            {{ formatCurrency(item.qty * item.unit_price) }}
+            {{ formatCurrency(item.lineTotal) }}
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@
       
       <div class="flex justify-between font-extrabold text-base mt-2 border-t-2 border-dashed border-black pt-2">
         <span>TOTAL:</span>
-        <span>{{ formatCurrency(order?.total || 0) }}</span>
+        <span>{{ formatCurrency(order?.payment_method === 'tarjeta' ? totalAmount : (order?.total || totalAmount)) }}</span>
       </div>
 
       <!-- Desglose de Efectivo y Vuelto si aplica -->
@@ -163,9 +163,25 @@ const businessName = computed(() => {
   return isMotoTech.value ? 'JyG MotoTech' : 'Carnicería María Félix'
 })
 
+const displayItems = computed(() => {
+  if (!props.items) return []
+  const factor = props.order?.payment_method === 'tarjeta' ? 1.053 : 1
+  return props.items.map(item => {
+    const qty = Number(item.qty) || 0
+    const rawPrice = Number(item.unit_price) || 0
+    const discount = Number(item.discount) || 0
+    const lineTotal = Math.round((qty * rawPrice * factor - discount) * 100) / 100
+    const unitPrice = qty > 0 ? (lineTotal / qty) : (rawPrice * factor)
+    return {
+      ...item,
+      unitPrice,
+      lineTotal
+    }
+  })
+})
+
 const totalAmount = computed(() => {
-  if (!props.items) return 0
-  return props.items.reduce((sum, item) => sum + (item.qty * item.unit_price), 0)
+  return displayItems.value.reduce((sum, item) => sum + item.lineTotal, 0)
 })
 
 const totalQuantity = computed(() => {

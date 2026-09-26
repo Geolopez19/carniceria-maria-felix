@@ -279,7 +279,7 @@
               <span class="text-xs text-slate-500 font-medium">Requerido para facturar</span>
             </div>
 
-            <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <div class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
               <!-- Método de Pago -->
               <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
@@ -319,43 +319,8 @@
                 </small>
               </div>
 
-              <!-- Aplicar IVA Switch / Toggle -->
-              <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <i class="pi pi-percentage text-emerald-500"></i>
-                  Impuesto de Venta (IVA)
-                </label>
-                <div 
-                  class="flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none"
-                  :class="applyTax ? 'bg-emerald-50/60 border-emerald-300 shadow-xs' : 'bg-slate-50/70 border-slate-200 hover:bg-slate-100/70'"
-                  @click="toggleApplyTax"
-                >
-                  <div class="flex items-center gap-3">
-                    <div 
-                      class="w-6 h-6 rounded-md flex items-center justify-center transition-colors border"
-                      :class="applyTax ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-transparent'"
-                    >
-                      <i class="pi pi-check text-xs font-bold"></i>
-                    </div>
-                    <div>
-                      <span class="text-sm font-bold block" :class="applyTax ? 'text-emerald-800' : 'text-slate-700'">
-                        Aplicar IVA ({{ IVA_PORCENTAJE }}%)
-                      </span>
-                      <span class="text-[11px] block" :class="applyTax ? 'text-emerald-600 font-medium' : 'text-slate-400'">
-                        {{ applyTax ? 'El IVA se calcula sobre los productos' : 'Desactivado (Venta exenta de IVA)' }}
-                      </span>
-                    </div>
-                  </div>
-                  <Tag 
-                    :value="applyTax ? 'Con IVA' : 'Exento'" 
-                    :severity="applyTax ? 'success' : 'secondary'"
-                    class="text-[10px] uppercase font-bold px-2"
-                  />
-                </div>
-              </div>
-
               <!-- Cliente Gym Switch -->
-              <div class="flex flex-col gap-2 col-span-1 md:col-span-2 lg:col-span-1">
+              <div class="flex flex-col gap-2">
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                   <i class="pi pi-star text-amber-500"></i>
                   Beneficio Gym
@@ -638,8 +603,9 @@ const printingItems = ref([]);
 
 const readOnly = computed(() => currentOrder.value?.status !== "draft");
 
-// Totales usando la nueva utilidad calculada con applyTax
-const totals = computed(() => calculateOrderTotals(items.value, applyTax.value));
+// Totales calculados incluyendo comisión POS (5.3%) si el método de pago es tarjeta
+const posFeePercent = computed(() => (paymentMethod.value === "tarjeta" ? 5.3 : 0));
+const totals = computed(() => calculateOrderTotals(items.value, 0, posFeePercent.value));
 
 // Funciones
 const statusLabel = (s) =>

@@ -1,6 +1,6 @@
 import { IVA_PORCENTAJE } from '../constants'
 
-export function calculateOrderTotals(items, discountPercent = 0) {
+export function calculateOrderTotals(items, discountPercent = 0, posFeePercent = 0) {
   const subtotal = (items || []).reduce((acc, item) => {
     const qty = Number(item.qty) || 0
     const price = Number(item.unit_price) || 0
@@ -8,16 +8,23 @@ export function calculateOrderTotals(items, discountPercent = 0) {
     return acc + (qty * price - itemDiscount)
   }, 0)
 
-  const pct = Math.max(0, Number(discountPercent) || 0)
+  const pct = typeof discountPercent === 'number' ? Math.max(0, discountPercent) : 0
   const discount_total = subtotal * (pct / 100)
+  const baseAfterDiscount = Math.max(0, subtotal - discount_total)
+
+  const feePct = Math.max(0, Number(posFeePercent) || 0)
+  const pos_fee_total = baseAfterDiscount * (feePct / 100)
+
   const tax_total = 0
-  const total = Math.max(0, subtotal - discount_total)
+  const total = baseAfterDiscount + pos_fee_total
 
   return {
     subtotal,
     discount_percent: pct,
     discount_total,
     tax_total,
+    pos_fee_percent: feePct,
+    pos_fee_total,
     total,
   }
 }
