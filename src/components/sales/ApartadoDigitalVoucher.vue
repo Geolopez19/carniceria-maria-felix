@@ -107,14 +107,28 @@
         <span class="font-mono font-black text-sm text-slate-900">{{ formatCurrency(apartado?.total || 0) }}</span>
       </div>
 
+      <!-- Historial de Abonos / Prima -->
+      <div v-if="historyAbonos.length > 0" class="my-2 p-2.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-xs">
+        <div class="text-[11px] font-extrabold uppercase text-slate-500 tracking-wider text-center border-b border-slate-100 pb-1">
+          Historial de Abonos & Prima
+        </div>
+        <div v-for="ab in historyAbonos" :key="ab.id || ab.numero_abono" class="flex justify-between items-center text-xs py-0.5 border-b border-slate-100 last:border-0">
+          <div>
+            <span class="font-bold text-slate-800">{{ Number(ab.numero_abono) === 1 || ab.is_prima ? 'Prima Inicial' : `Abono #${ab.numero_abono}` }}</span>
+            <span class="text-[10px] text-slate-500 ml-1.5">({{ formatDateOnly(ab.created_at || apartado?.created_at) }})</span>
+          </div>
+          <span class="font-mono font-black text-emerald-700">{{ formatCurrency(ab.monto) }}</span>
+        </div>
+      </div>
+
       <div class="flex justify-between items-center text-emerald-700">
         <span class="font-semibold">Total Acumulado Abonado:</span>
-        <span class="font-mono font-black text-sm text-emerald-800">- {{ formatCurrency(apartado?.total_abonado || 0) }}</span>
+        <span class="font-mono font-black text-sm text-emerald-800">- {{ formatCurrency(calculatedTotalAbonado) }}</span>
       </div>
 
       <!-- Abono específico realizado en esta transacción si existe -->
       <div v-if="abono?.monto" class="flex justify-between items-center text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">
-        <span>Abono Recibido ({{ abono.payment_method || 'Efectivo' }}):</span>
+        <span>Abono Recibido Hoy ({{ abono.payment_method || 'Efectivo' }}):</span>
         <span class="font-mono font-black text-emerald-950 text-sm">{{ formatCurrency(abono.monto) }}</span>
       </div>
 
@@ -205,6 +219,27 @@ const displayItems = computed(() => {
   if (props.items && props.items.length > 0) return props.items
   if (props.apartado?.items && props.apartado.items.length > 0) return props.apartado.items
   return []
+})
+
+const historyAbonos = computed(() => {
+  let list = []
+  if (Array.isArray(props.apartado?.abonos) && props.apartado.abonos.length > 0) {
+    list = [...props.apartado.abonos]
+  }
+  if (props.abono && props.abono.monto) {
+    const exists = list.some(a => (a.id && props.abono.id && a.id === props.abono.id) || Number(a.numero_abono) === Number(props.abono.numero_abono))
+    if (!exists) {
+      list.push(props.abono)
+    }
+  }
+  return list.sort((a, b) => (Number(a.numero_abono) || 0) - (Number(b.numero_abono) || 0))
+})
+
+const calculatedTotalAbonado = computed(() => {
+  if (historyAbonos.value.length > 0) {
+    return historyAbonos.value.reduce((sum, a) => sum + Number(a.monto || 0), 0)
+  }
+  return Number(props.apartado?.total_abonado || 0)
 })
 
 const currentSaldo = computed(() => {

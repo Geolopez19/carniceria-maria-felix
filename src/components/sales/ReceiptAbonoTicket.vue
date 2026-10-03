@@ -88,6 +88,25 @@
         <span class="font-bold">{{ formatCurrency(apartado?.total || totalItemsAmount) }}</span>
       </div>
 
+      <!-- Historial de Abonos & Prima -->
+      <div v-if="historyAbonos.length > 0" class="my-2 border-t border-b border-dashed border-black py-1.5 space-y-1">
+        <div class="font-black text-xs uppercase text-center border-b border-black pb-1 mb-1 tracking-wider">
+          --- FECHAS Y DETALLE DE ABONOS ---
+        </div>
+        <div v-for="ab in historyAbonos" :key="ab.id || ab.numero_abono" class="space-y-0.5 border-b border-dotted border-gray-300 pb-1 last:border-0">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold">
+              {{ Number(ab.numero_abono) === 1 || ab.is_prima ? 'Prima Inicial:' : `Abono #${ab.numero_abono}:` }}
+            </span>
+            <span class="font-extrabold text-black">{{ formatCurrency(ab.monto) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-[10px] text-gray-800">
+            <span>Fecha: {{ formatDateOnly(ab.created_at || apartado?.created_at) }}</span>
+            <span v-if="ab.payment_method" class="uppercase font-semibold">({{ ab.payment_method }})</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Caso: Recibo de Abono / Prima Específica -->
       <template v-if="abono?.monto">
         <div class="flex justify-between text-gray-700" v-if="abono?.saldo_anterior !== undefined">
@@ -95,7 +114,7 @@
           <span>{{ formatCurrency(abono.saldo_anterior) }}</span>
         </div>
         <div class="flex justify-between font-extrabold text-sm border-y border-black py-1 my-1">
-          <span>{{ Number(abono?.numero_abono) === 1 || isPrima ? 'PRIMA / ABONO INICIAL:' : 'MONTO ABONADO:' }}</span>
+          <span>{{ Number(abono?.numero_abono) === 1 || isPrima ? 'PRIMA / ABONO INICIAL:' : 'MONTO ABONADO (ESTE PAGO):' }}</span>
           <span>{{ formatCurrency(abono.monto) }}</span>
         </div>
         <div class="flex justify-between" v-if="abono?.payment_method">
@@ -116,7 +135,7 @@
       <template v-else>
         <div class="flex justify-between text-gray-700">
           <span>Total Abonado a la Fecha:</span>
-          <span class="font-bold text-black">{{ formatCurrency(apartado?.total_abonado || 0) }}</span>
+          <span class="font-bold text-black">{{ formatCurrency(calculatedTotalAbonado) }}</span>
         </div>
       </template>
       
@@ -209,6 +228,27 @@ const displayItems = computed(() => {
 
 const totalItemsAmount = computed(() => {
   return displayItems.value.reduce((sum, item) => sum + (Number(item.qty || 1) * Number(item.unit_price || 0)), 0)
+})
+
+const historyAbonos = computed(() => {
+  let list = []
+  if (Array.isArray(props.apartado?.abonos) && props.apartado.abonos.length > 0) {
+    list = [...props.apartado.abonos]
+  }
+  if (props.abono && props.abono.monto) {
+    const exists = list.some(a => (a.id && props.abono.id && a.id === props.abono.id) || Number(a.numero_abono) === Number(props.abono.numero_abono))
+    if (!exists) {
+      list.push(props.abono)
+    }
+  }
+  return list.sort((a, b) => (Number(a.numero_abono) || 0) - (Number(b.numero_abono) || 0))
+})
+
+const calculatedTotalAbonado = computed(() => {
+  if (historyAbonos.value.length > 0) {
+    return historyAbonos.value.reduce((sum, a) => sum + Number(a.monto || 0), 0)
+  }
+  return Number(props.apartado?.total_abonado || 0)
 })
 
 const totalQuantity = computed(() => {

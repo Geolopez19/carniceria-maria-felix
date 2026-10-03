@@ -1,121 +1,88 @@
 <template>
-  <aside 
-    class="text-white flex flex-col h-screen fixed left-0 top-0 shadow-2xl z-50 transition-all duration-300 ease-in-out"
+  <!-- Menú lateral claro (diseño Plan Separe 5a) -->
+  <aside
+    class="sb flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-200 ease-in-out"
     :class="[
-      isCollapsed ? 'lg:w-20' : 'lg:w-64',
-      isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0',
-      companyStore.isMotoTech ? 'bg-gradient-to-b from-slate-900 via-slate-800 to-amber-950' : 'bg-gradient-to-b from-indigo-600 to-indigo-800'
+      isCollapsed ? 'lg:w-16' : 'lg:w-[248px]',
+      isMobileOpen ? 'translate-x-0 w-[248px]' : '-translate-x-full lg:translate-x-0'
     ]"
   >
-    <!-- Logo/Header -->
-    <div class="p-6 flex items-center gap-3 border-b overflow-hidden min-h-[88px] relative"
-      :class="companyStore.isMotoTech ? 'border-amber-500/20' : 'border-indigo-500/30'"
-    >
-      <div 
-        class="bg-white p-2 rounded-xl shadow-lg transition-all duration-300 flex-shrink-0"
-        :class="isCollapsed ? 'mx-auto' : ''"
-      >
-        <Package class="w-6 h-6" :class="companyStore.isMotoTech ? 'text-amber-600' : 'text-indigo-600'" />
-      </div>
-      <div 
-        v-if="!isCollapsed"
-        class="flex flex-col whitespace-nowrap transition-opacity duration-300" 
-      >
-        <span class="text-xl font-bold tracking-tight">{{ companyStore.currentCompany.shortName }}</span>
-        <span class="text-xs" :class="companyStore.isMotoTech ? 'text-amber-300' : 'text-indigo-200'">{{ companyStore.currentCompany.type }}</span>
+    <!-- Marca -->
+    <div class="sb-brand" :class="{ 'justify-center': isCollapsed }">
+      <div class="sb-logo"><Package class="w-[18px] h-[18px]" /></div>
+      <div v-if="!isCollapsed" class="flex flex-col min-w-0">
+        <span class="truncate text-[15px] font-bold leading-tight">{{ companyStore.currentCompany.shortName }}</span>
+        <span class="truncate text-[11px] sb-muted">{{ companyStore.currentCompany.type }}</span>
       </div>
     </div>
 
-    <!-- Floating Toggle Button -->
-    <button 
+    <!-- Botón del borde para colapsar -->
+    <button
       @click="toggleSidebar"
-      class="hidden lg:flex absolute -right-3 top-24 bg-white text-indigo-600 p-1.5 rounded-full shadow-lg border border-indigo-100 hover:scale-110 active:scale-95 transition-all duration-300 z-50 items-center justify-center group"
-      :title="isCollapsed ? 'Expandir' : 'Colapsar'"
+      class="sb-toggle hidden lg:flex"
+      :title="isCollapsed ? 'Expandir menú' : 'Colapsar menú'"
+      :aria-label="isCollapsed ? 'Expandir menú' : 'Colapsar menú'"
     >
-      <ChevronLeft 
-        class="w-3 h-3 transition-transform duration-300" 
-        :class="isCollapsed ? 'rotate-180' : ''" 
-      />
+      <ChevronLeft class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'rotate-180': isCollapsed }" />
     </button>
 
-    <nav class="flex-1 p-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar overflow-x-hidden pt-8">
-      <div v-for="(group, index) in navigation" :key="index" class="flex flex-col gap-2">
-        <div 
-          v-if="group.title && !isCollapsed" 
-          class="text-xs font-bold text-indigo-200 uppercase px-4 tracking-widest whitespace-nowrap transition-opacity duration-300"
-        >
-          {{ group.title }}
-        </div>
-        <div v-else-if="group.title && isCollapsed" class="h-4 border-b border-indigo-500/30 mb-2 mx-2"></div>
-        
-        <router-link 
-          v-for="item in group.items" 
-          :key="item.path" 
+    <nav class="flex-1 px-2 py-2.5 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
+      <template v-for="(group, index) in navigation" :key="index">
+        <span v-if="group.title && !isCollapsed" class="sb-group">{{ group.title }}</span>
+        <span v-else-if="index > 0" class="sb-rule"></span>
+
+        <router-link
+          v-for="item in group.items"
+          :key="item.path"
           :to="item.path"
           @click="$emit('closeMobile')"
-          class="flex items-center gap-3 py-2.5 px-4 rounded-xl transition-all duration-200 text-indigo-100 hover:text-white hover:bg-white/10 group relative"
-          active-class="bg-white/10 text-white font-semibold shadow-inner"
-          :class="{ 'justify-center px-0': isCollapsed }"
-          :title="isCollapsed ? item.name : ''"
+          class="sb-item"
+          :class="{ 'sb-item-active': isActive(item.path), 'justify-center': isCollapsed }"
+          :title="item.name"
+          :aria-label="item.name"
         >
-          <component 
-            :is="item.icon" 
-            class="w-5 h-5 transition-transform group-hover:scale-110 flex-shrink-0" 
-            :class="{ 'text-white': $route.path.startsWith(item.path), 'text-indigo-200 group-hover:text-white': !$route.path.startsWith(item.path) }"
-          />
-          
-          <span v-if="!isCollapsed" class="font-medium whitespace-nowrap transition-opacity duration-300">{{ item.name }}</span>
-          
-          <!-- Indicator for active state -->
-          <div 
-            v-if="$route.path.startsWith(item.path)" 
-            class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-md shadow-[0_0_10px_rgba(255,255,255,0.5)]"
-          ></div>
-          
-          <!-- Tooltip on hover when collapsed -->
-          <div 
-            v-if="isCollapsed"
-            class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-lg"
-          >
-            {{ item.name }}
-          </div>
+          <span class="sb-bar"></span>
+          <component :is="item.icon" class="w-[18px] h-[18px] flex-shrink-0 sb-ic" />
+          <span v-if="!isCollapsed" class="truncate">{{ item.name }}</span>
         </router-link>
-      </div>
+      </template>
     </nav>
 
-    <div class="p-4 border-t border-indigo-500/30">
-      <button 
-        @click="handleLogout" 
-        class="w-full flex items-center gap-3 py-3 px-4 rounded-xl transition-all duration-200 hover:bg-red-500/20 text-indigo-100 hover:text-white hover:scale-105 group"
-        :class="{ 'justify-center px-0': isCollapsed }"
-        :title="isCollapsed ? 'Cerrar Sesión' : ''"
+    <div class="p-2 border-t border-[#E5E5E5]">
+      <button
+        @click="handleLogout"
+        class="sb-logout"
+        :class="{ 'justify-center': isCollapsed }"
+        title="Cerrar Sesión"
+        aria-label="Cerrar Sesión"
       >
-        <LogOut class="w-5 h-5 group-hover:scale-110 transition-transform flex-shrink-0" />
-        <span v-if="!isCollapsed" class="font-medium whitespace-nowrap transition-opacity duration-300">Cerrar Sesión</span>
+        <LogOut class="w-[18px] h-[18px] flex-shrink-0" />
+        <span v-if="!isCollapsed">Cerrar Sesión</span>
       </button>
     </div>
   </aside>
 </template>
 
 <script setup>
-import { 
-  Package, 
-  ShoppingCart, 
-  Truck, 
-  BarChart3, 
-  Users, 
-  LogOut, 
+import {
+  Package,
+  ShoppingCart,
+  Truck,
+  BarChart3,
+  Users,
+  LogOut,
   FileText,
   ChevronLeft,
-  ChevronRight,
   Settings,
   BookmarkCheck
 } from 'lucide-vue-next'
+import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabaseClient'
 import { useCompanyStore } from '../stores/companyStore'
 import { computed } from 'vue'
 
 const companyStore = useCompanyStore()
+const route = useRoute()
 
 const props = defineProps({
   isCollapsed: {
@@ -134,6 +101,8 @@ const toggleSidebar = () => {
   emit('toggle')
 }
 
+const isActive = (path) => route.path.startsWith(path)
+
 const navigation = computed(() => {
   const ventasItems = [
     { name: 'Ofertas / Cotizar', path: '/ventas/ofertas', icon: ShoppingCart },
@@ -149,7 +118,7 @@ const navigation = computed(() => {
 
   return [
     {
-      title: 'Principal',
+      title: null,
       items: [
         { name: 'Inventario', path: '/inventario', icon: Package },
         { name: 'Compras', path: '/compras', icon: Truck },
@@ -175,4 +144,38 @@ const handleLogout = async () => {
 }
 </script>
 
-
+<style scoped>
+.sb {
+  background: #fff;
+  border-right: 1px solid #E5E5E5;
+  font: 13px/1.4 "Barlow", system-ui, sans-serif;
+  color: #181818;
+}
+.sb-muted { color: #5C5C5C; }
+.sb-brand { height: 60px; padding: 0 14px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #E5E5E5; flex: none; }
+.sb-logo { width: 34px; height: 34px; flex: none; border-radius: 4px; background: #0B6BCB; color: #fff; display: flex; align-items: center; justify-content: center; }
+.sb-toggle {
+  position: absolute; top: 46px; right: -12px; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid #C9C9C9; background: #fff; color: #5C5C5C; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 1px 2px rgba(0, 0, 0, .1); z-index: 2;
+}
+.sb-toggle:hover { color: #0B6BCB; border-color: #0B6BCB; }
+.sb-group { padding: 14px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #706E6B; white-space: nowrap; }
+.sb-rule { height: 1px; margin: 10px 8px; background: #E5E5E5; flex: none; }
+.sb-item {
+  position: relative; height: 36px; padding: 0 10px; display: flex; align-items: center; gap: 10px; flex: none;
+  border-radius: 4px; color: #3E3E3C; font-weight: 500; text-decoration: none; white-space: nowrap;
+}
+.sb-item:hover { background: #F3F3F3; }
+.sb-ic { color: #706E6B; }
+.sb-bar { position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 2px 2px 0; background: transparent; }
+.sb-item-active, .sb-item-active:hover { background: #E3EEFA; color: #0B6BCB; font-weight: 600; }
+.sb-item-active .sb-ic { color: #0B6BCB; }
+.sb-item-active .sb-bar { background: #0B6BCB; }
+.sb-item:focus-visible, .sb-logout:focus-visible, .sb-toggle:focus-visible { outline: 2px solid #0B6BCB; outline-offset: -2px; }
+.sb-logout {
+  width: 100%; height: 36px; padding: 0 10px; display: flex; align-items: center; gap: 10px;
+  border: 0; border-radius: 4px; background: transparent; color: #3E3E3C; font: 500 13px "Barlow", system-ui, sans-serif; cursor: pointer;
+}
+.sb-logout:hover { background: #FDECEA; color: #BA0517; }
+</style>

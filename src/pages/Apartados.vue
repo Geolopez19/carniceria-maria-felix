@@ -22,668 +22,501 @@
       />
     </div>
 
-    <!-- Header Principal -->
-    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-700 rounded-2xl p-6 mb-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="px-2.5 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/30 text-amber-300 font-bold text-xs uppercase tracking-wider">
-            🏍️ Plan Separe / Cascos & Accesorios
-          </span>
-        </div>
-        <h1 class="text-2xl md:text-3xl font-black tracking-tight">Sistema de Apartados</h1>
-        <p class="text-slate-300 text-sm">Gestiona reservas de cascos y recibe abonos periódicos de los clientes</p>
-      </div>
-
-      <div class="flex flex-wrap gap-2 w-full md:w-auto">
-        <Button
-          label="Nuevo Apartado"
-          icon="pi pi-plus"
-          class="!bg-amber-600 hover:!bg-amber-700 !border-0 !text-white font-bold !px-5 !py-2.5 !rounded-xl !shadow-lg"
-          @click="openNuevoApartadoModal"
-        />
-      </div>
-    </div>
-
-    <!-- Métricas del Sistema -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-      <Card class="bg-white border border-slate-200 shadow-xs">
-        <template #title>
-          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Apartados</span>
-        </template>
-        <template #content>
-          <div class="text-2xl font-black text-slate-800">{{ stats.total }}</div>
-        </template>
-      </Card>
-      <Card class="bg-emerald-50/50 border border-emerald-200 shadow-xs">
-        <template #title>
-          <span class="text-xs font-bold text-emerald-700 uppercase tracking-wider">Total Recaudado</span>
-        </template>
-        <template #content>
-          <div class="text-2xl font-black text-emerald-700">{{ formatCurrency(stats.totalAbonado) }}</div>
-        </template>
-      </Card>
-      <Card class="bg-amber-50/50 border border-amber-200 shadow-xs">
-        <template #title>
-          <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Saldo por Cobrar</span>
-        </template>
-        <template #content>
-          <div class="text-2xl font-black text-amber-700">{{ formatCurrency(stats.saldoPendiente) }}</div>
-        </template>
-      </Card>
-      <Card class="bg-blue-50/50 border border-blue-200 shadow-xs">
-        <template #title>
-          <span class="text-xs font-bold text-blue-700 uppercase tracking-wider">Activos / Pendientes</span>
-        </template>
-        <template #content>
-          <div class="text-2xl font-black text-blue-700">{{ stats.activos }}</div>
-        </template>
-      </Card>
-    </div>
-
-    <!-- Filtros y Búsqueda -->
-    <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200 mb-4 flex flex-col md:flex-row gap-3 justify-between items-center">
-      <IconField iconPosition="left" class="w-full md:w-80">
-        <InputIcon class="pi pi-search text-slate-400" />
-        <InputText v-model="searchQuery" placeholder="Buscar por cliente, código o teléfono..." class="w-full text-sm" />
-      </IconField>
-
-      <div class="flex items-center gap-2 w-full md:w-auto">
-        <Select
-          v-model="statusFilter"
-          :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Estado"
-          class="w-full md:w-44 text-sm"
-        />
-      </div>
-    </div>
-
-    <!-- Tabla Principal de Apartados -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <DataTable
-        :value="filteredApartados"
-        :loading="isLoading"
-        paginator
-        :rows="10"
-        stripedRows
-        class="p-datatable-sm"
-      >
-        <template #empty>
-          <div class="p-8 text-center text-slate-400">
-            <i class="pi pi-inbox text-3xl mb-2 block"></i>
-            No hay apartados registrados con los criterios seleccionados.
+    <div class="ap flex flex-col gap-3">
+      <!-- Plan Separe v3 — encabezado de módulo con indicadores integrados (3a escritorio / 3b móvil) -->
+      <div class="ap-panel">
+        <div class="flex items-center gap-3 px-3 py-3 md:px-4">
+          <div class="ap-badge"><i class="pi pi-shield"></i></div>
+          <div class="flex flex-col min-w-0">
+            <span class="ap-eyebrow">Plan Separe / Cascos &amp; Accesorios</span>
+            <span class="ap-title">Sistema de Apartados</span>
           </div>
-        </template>
+          <span class="ap-desc hidden lg:block">Gestiona reservas de cascos y recibe abonos periódicos de los clientes.</span>
+          <button class="ap-btn-primary ml-auto shrink-0" @click="openNuevoApartadoModal" title="Nuevo Apartado">
+            <i class="pi pi-plus text-xs"></i><span class="hidden sm:inline">Nuevo Apartado</span><span class="sm:hidden">Nuevo</span>
+          </button>
+        </div>
+        <div class="px-3 pb-3 text-xs ap-muted lg:hidden">Gestiona reservas de cascos y recibe abonos periódicos de los clientes.</div>
+        <div class="ap-kpis grid grid-cols-2 md:grid-cols-4">
+          <div class="ap-kpi"><span class="ap-kpi-l">Total apartados</span><span class="ap-kpi-v">{{ stats.total }}</span></div>
+          <div class="ap-kpi"><span class="ap-kpi-l">Total recaudado</span><span class="ap-kpi-v">{{ formatCurrency(stats.totalAbonado) }}</span></div>
+          <div class="ap-kpi"><span class="ap-kpi-l">Saldo por cobrar</span><span class="ap-kpi-v ap-blue">{{ formatCurrency(stats.saldoPendiente) }}</span></div>
+          <div class="ap-kpi"><span class="ap-kpi-l">Activos / pendientes</span><span class="ap-kpi-v">{{ stats.activos }}</span></div>
+        </div>
+      </div>
 
-        <Column field="codigo_apartado" header="Código" style="width: 110px">
-          <template #body="{ data }">
-            <span class="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2 py-1 rounded border border-slate-200">
-              {{ data.codigo_apartado }}
-            </span>
-          </template>
-        </Column>
+      <!-- Vista de lista -->
+      <div class="ap-panel overflow-hidden">
+        <div class="ap-toolbar">
+          <div class="hidden md:flex flex-col mr-auto">
+            <span class="text-sm font-bold">Apartados</span>
+            <span class="text-[11px] ap-muted">{{ countLabel }}</span>
+          </div>
+          <div class="relative flex items-center flex-1 md:flex-none md:w-[300px]">
+            <i class="pi pi-search absolute left-2.5 text-xs ap-icon"></i>
+            <input v-model="searchQuery" class="ap-input pl-8" placeholder="Buscar por cliente, código o teléfono" />
+          </div>
+          <div class="relative flex items-center w-[120px] md:w-[190px]">
+            <select v-model="statusFilter" class="ap-input pr-7 appearance-none cursor-pointer">
+              <option v-for="o in statusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+            </select>
+            <i class="pi pi-chevron-down absolute right-2.5 text-[10px] ap-icon pointer-events-none"></i>
+          </div>
+        </div>
 
-        <Column field="customer_name" header="Cliente">
-          <template #body="{ data }">
-            <div class="font-bold text-slate-800">{{ data.customer_name }}</div>
-            <div class="text-xs text-slate-400" v-if="data.customer_phone">{{ data.customer_phone }}</div>
-          </template>
-        </Column>
+        <!-- 3a · Tabla (escritorio ancho) -->
+        <table class="ap-table hidden min-[1360px]:table">
+          <thead>
+            <tr>
+              <th style="width:132px" class="!pl-4">Código · Estado</th>
+              <th style="width:160px">Cliente</th>
+              <th>Productos</th>
+              <th style="width:190px">Progreso de pago</th>
+              <th style="width:104px" class="text-right">Saldo</th>
+              <th style="width:126px" class="!pl-5">Límite</th>
+              <th style="width:232px" class="!pr-4">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-if="isLoading">
+              <tr v-for="s in 5" :key="'sk' + s"><td colspan="7" class="!px-4 !py-3.5"><div class="ap-sk h-3 w-full"></div></td></tr>
+            </template>
+            <template v-else>
+              <tr v-for="r in rowsView" :key="r.id">
+                <td class="!pl-4">
+                  <div class="ap-code">{{ r.code }}</div>
+                  <span class="ap-pill mt-1" :class="r.pillClass">{{ r.statusLabel }}</span>
+                </td>
+                <td>
+                  <div class="truncate font-semibold" :title="r.client">{{ r.client }}</div>
+                  <div class="text-xs ap-muted">{{ r.phone || '—' }}</div>
+                </td>
+                <td>
+                  <div v-for="(p, i) in r.products.slice(0, 2)" :key="i" class="truncate" :title="p">{{ p }}</div>
+                  <div v-if="r.moreLabel" class="text-xs ap-muted">{{ r.moreLabel }}</div>
+                </td>
+                <td>
+                  <div class="flex justify-between gap-2 text-xs mb-1 tabular-nums">
+                    <span class="truncate"><b class="font-semibold">{{ formatCurrency(r.paid) }}</b> <span class="ap-muted">de {{ formatCurrency(r.total) }}</span></span>
+                    <span class="font-semibold">{{ r.pct }}%</span>
+                  </div>
+                  <div class="ap-bar"><div :style="{ width: r.pct + '%', background: r.barColor }"></div></div>
+                </td>
+                <td class="text-right font-bold tabular-nums whitespace-nowrap" :style="{ color: r.saldoColor }">{{ formatCurrency(r.saldo) }}</td>
+                <td class="!pl-5">
+                  <div class="font-semibold tabular-nums">{{ r.due }}</div>
+                  <div class="text-[11px] leading-tight" :style="{ color: r.dueColor, fontWeight: r.dueWeight }">{{ r.dueHint }}</div>
+                  <div class="text-[11px] ap-muted tabular-nums">Emitido {{ r.issued }}</div>
+                </td>
+                <td class="!pr-4">
+                  <div class="ap-actions">
+                    <template v-for="a in r.acts" :key="a.key">
+                      <span v-if="a.sep" class="ap-sep"></span>
+                      <button class="ap-act" :class="{ 'ap-act-danger': a.danger }" :title="a.label" :aria-label="a.label" @click="a.run"><i :class="a.icon"></i></button>
+                    </template>
+                  </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
 
-        <Column header="Productos">
-          <template #body="{ data }">
-            <div class="space-y-0.5 max-w-[200px]">
-              <div v-for="item in data.items" :key="item.id" class="text-xs truncate text-slate-700 font-medium">
-                • {{ item.product_name }} (x{{ item.qty }})
+        <!-- 3b · Lista de registros (móvil, tablet y laptop) -->
+        <div class="min-[1360px]:hidden">
+          <div class="px-3 pt-2.5 text-[11px] ap-muted md:hidden">{{ countLabel }}</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 p-2.5 md:p-3">
+            <template v-if="isLoading">
+              <div v-for="s in 4" :key="'skm' + s" class="ap-rec p-3 flex flex-col gap-2">
+                <div class="ap-sk h-3 w-1/3"></div><div class="ap-sk h-4 w-2/3"></div><div class="ap-sk h-2 w-full"></div><div class="ap-sk h-9 w-full"></div>
               </div>
-            </div>
-          </template>
-        </Column>
-
-        <Column header="Progreso de Pago" style="min-width: 180px">
-          <template #body="{ data }">
-            <div class="space-y-1">
-              <div class="flex justify-between text-[11px] font-bold">
-                <span class="text-emerald-700">{{ formatCurrency(data.total_abonado) }}</span>
-                <span class="text-slate-500">de {{ formatCurrency(data.total) }}</span>
+            </template>
+            <template v-else>
+              <div v-for="r in rowsView" :key="r.id" class="ap-rec flex flex-col">
+                <div class="px-3 py-2.5 flex flex-col gap-1.5 flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="ap-code">{{ r.code }}</span>
+                    <span class="ap-pill" :class="r.pillClass">{{ r.statusLabel }}</span>
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-[15px] font-bold">{{ r.client }}</span>
+                    <span v-if="r.phone" class="text-xs ap-muted"> · {{ r.phone }}</span>
+                  </div>
+                  <div class="ap-muted">
+                    <div v-for="(p, i) in r.products" :key="i" class="truncate" :title="p">{{ p }}</div>
+                  </div>
+                  <div class="mt-0.5">
+                    <div class="flex justify-between gap-2 text-xs mb-1 tabular-nums">
+                      <span><b class="font-semibold">{{ formatCurrency(r.paid) }}</b> <span class="ap-muted">de {{ formatCurrency(r.total) }} · {{ r.pct }}%</span></span>
+                      <span class="whitespace-nowrap">Saldo <b class="font-bold" :style="{ color: r.saldoColor }">{{ formatCurrency(r.saldo) }}</b></span>
+                    </div>
+                    <div class="ap-bar"><div :style="{ width: r.pct + '%', background: r.barColor }"></div></div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div><span class="ap-muted">Emisión</span><div>{{ r.issued }}</div></div>
+                    <div>
+                      <span class="ap-muted">Límite</span>
+                      <div class="font-semibold">{{ r.due }} <span v-if="r.dueHint" :style="{ color: r.dueColor, fontWeight: r.dueWeight }">· {{ r.dueHint }}</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="ap-rec-acts">
+                  <button v-for="a in r.acts" :key="a.key" class="ap-act-m" :class="{ 'ap-act-danger': a.danger }" :title="a.label" :aria-label="a.label" @click="a.run"><i :class="a.icon"></i></button>
+                </div>
               </div>
-              <!-- Barra de progreso -->
-              <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div
-                  class="h-full rounded-full transition-all"
-                  :class="getProgressColor(data)"
-                  :style="{ width: `${Math.min(100, Math.round((data.total_abonado / (data.total || 1)) * 100))}%` }"
-                ></div>
-              </div>
-              <div class="flex justify-between text-[10px] text-slate-400">
-                <span>{{ Math.round((data.total_abonado / (data.total || 1)) * 100) }}% pagado</span>
-                <span v-if="data.saldo_pendiente > 0" class="font-bold text-amber-700">Resta: {{ formatCurrency(data.saldo_pendiente) }}</span>
-                <span v-else class="font-bold text-emerald-600">¡Completado!</span>
-              </div>
-            </div>
-          </template>
-        </Column>
+            </template>
+          </div>
+        </div>
 
-        <Column field="created_at" header="Emisión" style="width: 110px">
-          <template #body="{ data }">
-            <span class="text-xs font-semibold text-slate-600" v-if="data.created_at">
-              {{ formatDateOnly(data.created_at) }}
-            </span>
-            <span v-else class="text-xs text-slate-400">—</span>
-          </template>
-        </Column>
-
-        <Column field="fecha_limite" header="Límite" style="width: 110px">
-          <template #body="{ data }">
-            <span class="text-xs font-semibold text-slate-600" v-if="data.fecha_limite">
-              {{ formatDateOnly(data.fecha_limite) }}
-            </span>
-            <span v-else class="text-xs text-slate-400">—</span>
-          </template>
-        </Column>
-
-        <Column field="status" header="Estado" style="width: 110px">
-          <template #body="{ data }">
-            <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" class="text-[10px] uppercase font-bold" />
-          </template>
-        </Column>
-
-        <Column header="Acciones" style="width: 230px" class="text-right">
-          <template #body="{ data }">
-            <div class="flex gap-1 justify-end items-center">
-              <!-- Botón Descargar Imagen PNG -->
-              <Button
-                icon="pi pi-image"
-                severity="info"
-                text
-                rounded
-                @click="descargarComprobanteImagen(data)"
-                title="Descargar Comprobante como Imagen (PNG)"
-              />
-
-              <!-- Botón Imprimir Comprobante General / Deuda -->
-              <Button
-                icon="pi pi-print"
-                severity="secondary"
-                text
-                rounded
-                @click="imprimirComprobante(data)"
-                title="Imprimir Comprobante de Apartado / Total de Deuda"
-              />
-
-              <!-- Botón Enviar WhatsApp -->
-              <Button
-                icon="pi pi-whatsapp"
-                severity="success"
-                text
-                rounded
-                @click="compartirWhatsApp(data)"
-                title="Enviar Detalle de Deuda por WhatsApp"
-              />
-
-              <!-- Botón Editar Apartado -->
-              <Button
-                v-if="data.status === 'activo' || data.status === 'liquidado'"
-                icon="pi pi-pencil"
-                severity="warn"
-                text
-                rounded
-                @click="openEditarModal(data)"
-                title="Editar Apartado / Modificar Cascos"
-              />
-
-              <!-- Botón Abonar -->
-              <Button
-                v-if="data.status === 'activo'"
-                icon="pi pi-plus-circle"
-                severity="success"
-                text
-                rounded
-                @click="openAbonarModal(data)"
-                title="Registrar Abono"
-              />
-
-              <!-- Botón Entregar -->
-              <Button
-                v-if="data.status === 'liquidado'"
-                icon="pi pi-check-circle"
-                severity="help"
-                text
-                rounded
-                @click="confirmarEntrega(data)"
-                title="Entregar Producto al Cliente"
-              />
-
-              <!-- Ver Detalle / Historial -->
-              <Button
-                icon="pi pi-eye"
-                severity="info"
-                text
-                rounded
-                @click="openDetalleModal(data)"
-                title="Ver Historial de Abonos"
-              />
-
-              <!-- Botón Devolución Completa / Cancelar -->
-              <Button
-                v-if="data.status !== 'cancelado'"
-                icon="pi pi-undo"
-                severity="danger"
-                text
-                rounded
-                @click="openDevolucionModal(data)"
-                :title="data.status === 'entregado' ? 'Devolución de Apartado Entregado / Reingresar al Inventario' : 'Devolución Completa / Reingresar al Inventario'"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
+        <div v-if="!isLoading && rowsView.length === 0" class="ap-empty">
+          <i class="pi pi-search text-2xl ap-icon"></i>
+          <span class="font-bold text-sm">No se encontraron apartados</span>
+          <span class="ap-muted">Prueba con otro nombre, código o teléfono.</span>
+          <button class="ap-btn-secondary mt-1" @click="clearFilters">Limpiar búsqueda</button>
+        </div>
+      </div>
     </div>
 
-    <!-- MODAL 1: NUEVO / EDITAR APARTADO -->
+    <!-- MODAL 1: NUEVO / EDITAR APARTADO (diseño 4a / 4b) -->
     <Dialog
       v-model:visible="nuevoModalVisible"
-      :header="isEditMode ? ('Editar Apartado ' + (editingApartado?.codigo_apartado || '')) : 'Crear Nuevo Apartado de Casco / Accesorio'"
       modal
-      class="w-full max-w-3xl"
+      :showHeader="false"
+      :style="{ width: '680px' }"
+      :breakpoints="{ '720px': '95vw' }"
+      :pt="apmPt"
     >
-      <div class="space-y-4 py-2">
-        <!-- Cliente -->
-        <div class="space-y-1">
-          <label class="text-xs font-bold text-slate-700 uppercase">Cliente</label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <InputText v-model="nuevoForm.customerName" placeholder="Nombre completo del cliente *" class="w-full" />
-            <InputText v-model="nuevoForm.customerPhone" placeholder="Teléfono / WhatsApp" class="w-full" />
+      <div class="apm">
+        <div class="apm-head">
+          <div class="flex flex-col min-w-0">
+            <span class="apm-eyebrow">Plan Separe / Cascos &amp; Accesorios</span>
+            <span v-if="isEditMode" class="apm-title">Editar Apartado <span class="apm-blue">{{ editingApartado?.codigo_apartado }}</span></span>
+            <span v-else class="apm-title">Crear Nuevo Apartado de Casco / Accesorio</span>
           </div>
+          <button class="apm-close" title="Cerrar" aria-label="Cerrar" @click="nuevoModalVisible = false"><i class="pi pi-times"></i></button>
         </div>
 
-        <!-- Selección de Casco/Producto -->
-        <div class="space-y-1">
-          <label class="text-xs font-bold text-slate-700 uppercase">Seleccionar Producto del Inventario</label>
-          <div class="flex gap-2">
-            <Select
-              v-model="selectedProduct"
-              :options="productosList"
-              optionLabel="nombre"
-              filter
-              placeholder="Buscar casco o accesorio por nombre o código..."
-              class="w-full"
-            >
-              <template #option="{ option }">
-                <div class="flex justify-between items-center w-full">
-                  <div>
-                    <span class="font-bold text-sm">{{ option.nombre }}</span>
-                    <span v-if="option.talla" class="text-xs text-slate-500 ml-2 bg-slate-100 px-1.5 py-0.5 rounded">Talla: {{ option.talla }}</span>
+        <div class="apm-body">
+          <!-- Cliente -->
+          <div class="apm-section">
+            <span class="apm-sec-title">Cliente</span>
+            <div class="grid grid-cols-1 gap-3" :class="isEditMode ? 'sm:grid-cols-[2fr_1fr]' : 'sm:grid-cols-2'">
+              <label class="apm-field">
+                <span class="apm-lbl"><span v-if="!isEditMode" class="apm-req">*</span> {{ isEditMode ? 'Nombre' : 'Nombre completo del cliente' }}</span>
+                <input v-model="nuevoForm.customerName" class="apm-input" placeholder="Nombre completo del cliente" />
+              </label>
+              <label class="apm-field">
+                <span class="apm-lbl">{{ isEditMode ? 'Teléfono' : 'Teléfono / WhatsApp' }}</span>
+                <input v-model="nuevoForm.customerPhone" class="apm-input tabular-nums" placeholder="Teléfono / WhatsApp" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Productos -->
+          <div class="apm-section apm-sep">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="apm-sec-title">Productos a apartar ({{ nuevoForm.items.length }})</span>
+              <span v-if="nuevoForm.items.length > 0" class="text-[11px] apm-muted hidden sm:inline">Puedes modificar el precio unitario si aplica</span>
+            </div>
+            <div class="apm-field">
+              <span class="apm-lbl">Seleccionar producto del inventario</span>
+              <div class="flex gap-2">
+                <Select
+                  v-model="selectedProduct"
+                  :options="productosList"
+                  optionLabel="nombre"
+                  filter
+                  placeholder="Buscar casco o accesorio por nombre o código..."
+                  class="apm-pselect flex-1 min-w-0"
+                >
+                  <template #option="{ option }">
+                    <div class="flex justify-between items-center w-full gap-3">
+                      <div class="min-w-0">
+                        <span class="font-semibold text-sm">{{ option.nombre }}</span>
+                        <span v-if="option.talla" class="text-xs text-slate-500 ml-2 bg-slate-100 px-1.5 py-0.5 rounded">Talla: {{ option.talla }}</span>
+                      </div>
+                      <span class="font-semibold text-xs whitespace-nowrap" style="color:#0B6BCB">{{ formatCurrency(option.precio || option.precio_taller || 0) }}</span>
+                    </div>
+                  </template>
+                </Select>
+                <button class="apm-btn-secondary shrink-0" :disabled="!selectedProduct" @click="addItemToNuevo"><i class="pi pi-plus text-xs"></i>Agregar</button>
+              </div>
+            </div>
+
+            <div v-if="nuevoForm.items.length === 0" class="apm-empty-dashed">
+              Aún no hay productos. Selecciona uno del inventario y pulsa Agregar.
+            </div>
+            <div v-else class="apm-box overflow-hidden">
+              <div class="apm-items-row apm-items-head hidden sm:grid">
+                <span>Descripción / casco</span><span class="text-center">Cant</span><span>Precio unit. (C$)</span><span class="text-right">Subtotal</span><span></span>
+              </div>
+              <div v-for="(item, idx) in nuevoForm.items" :key="idx" class="apm-items-row apm-items-line">
+                <input v-model="item.product_name" class="apm-input apm-item-desc" placeholder="Nombre / Detalle del casco" />
+                <input v-model.number="item.qty" type="number" min="1" step="1" class="apm-input text-center" aria-label="Cantidad" />
+                <input v-model.number="item.unit_price" type="number" min="0" step="0.01" class="apm-input text-right tabular-nums" aria-label="Precio unitario" />
+                <span class="text-right font-bold tabular-nums whitespace-nowrap">{{ formatCurrency((item.qty || 1) * (item.unit_price || 0)) }}</span>
+                <button class="apm-icon-btn apm-icon-danger" title="Eliminar producto" aria-label="Eliminar producto" @click="removeItemFromNuevo(idx)"><i class="pi pi-trash"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resumen de pago -->
+          <div class="apm-section apm-sep">
+            <span class="apm-sec-title">Resumen de pago</span>
+            <div class="apm-box apm-soft">
+              <div class="grid grid-cols-1 sm:grid-cols-3 apm-cells">
+                <div class="apm-cell">
+                  <div class="apm-cell-l">Total del apartado</div>
+                  <div class="apm-cell-v">{{ formatCurrency(nuevoTotal) }}</div>
+                </div>
+                <div v-if="isEditMode" class="apm-cell">
+                  <div class="apm-cell-l">Total abonado a la fecha</div>
+                  <div class="apm-cell-v">{{ formatCurrency(editingApartado?.total_abonado || 0) }}</div>
+                </div>
+                <label v-else class="apm-cell flex flex-col gap-1">
+                  <span class="apm-cell-l">Prima / abono inicial</span>
+                  <div class="relative flex items-center">
+                    <span class="absolute left-2.5 font-semibold apm-muted">C$</span>
+                    <input v-model.number="nuevoForm.primaMonto" type="number" min="0" step="0.01" class="apm-input !pl-8 font-bold text-sm tabular-nums" placeholder="0.00" />
                   </div>
-                  <span class="font-bold text-emerald-700 text-xs">{{ formatCurrency(option.precio || option.precio_taller || 0) }}</span>
+                </label>
+                <div class="apm-cell">
+                  <div class="apm-cell-l">Saldo restante</div>
+                  <div class="apm-cell-v apm-blue">{{ formatCurrency(nuevoSaldoRestante) }}</div>
                 </div>
-              </template>
-            </Select>
-            <Button 
-              label="Agregar" 
-              icon="pi pi-plus" 
-              @click="addItemToNuevo" 
-              :disabled="!selectedProduct" 
-              class="bg-amber-600 border-0 text-white font-bold shrink-0" 
-            />
-          </div>
-        </div>
-
-        <!-- Lista de productos agregados con edición de precio y cantidad -->
-        <div v-if="nuevoForm.items.length > 0" class="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-          <div class="bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 uppercase flex justify-between items-center border-b border-slate-200">
-            <span>Productos a Apartar ({{ nuevoForm.items.length }})</span>
-            <span class="text-[11px] text-amber-700 font-semibold italic">Puedes modificar el precio unitario si aplica</span>
-          </div>
-          <div class="divide-y divide-slate-200 bg-white">
-            <div v-for="(item, idx) in nuevoForm.items" :key="idx" class="p-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
-              <div class="flex-1 min-w-0 w-full md:w-auto">
-                <label class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Descripción / Casco</label>
-                <InputText 
-                  v-model="item.product_name" 
-                  placeholder="Nombre / Detalle del casco" 
-                  class="w-full text-xs font-bold text-slate-800 p-2" 
-                />
               </div>
-              <div class="flex items-center gap-2 w-full md:w-auto justify-between md:justify-end">
-                <div class="flex flex-col items-center">
-                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Cant</span>
-                  <InputNumber
-                    v-model="item.qty"
-                    :min="1"
-                    :maxFractionDigits="0"
-                    class="w-16"
-                    inputClass="text-center font-bold text-xs p-2 w-16"
-                  />
-                </div>
-                <div class="flex flex-col items-end">
-                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Precio Unit. (C$)</span>
-                  <InputNumber
-                    v-model="item.unit_price"
-                    mode="currency"
-                    currency="NIO"
-                    locale="es-NI"
-                    :min="0"
-                    class="w-28"
-                    inputClass="text-right font-bold text-xs p-2 w-28 text-emerald-700"
-                  />
-                </div>
-                <div class="flex flex-col items-end min-w-[85px]">
-                  <span class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Subtotal</span>
-                  <span class="font-black text-slate-800 text-sm mt-1">{{ formatCurrency((item.qty || 1) * (item.unit_price || 0)) }}</span>
-                </div>
-                <Button 
-                  icon="pi pi-trash" 
-                  severity="danger" 
-                  text 
-                  rounded 
-                  size="small" 
-                  @click="removeItemFromNuevo(idx)" 
-                  class="mt-3 hover:bg-rose-50"
-                  title="Eliminar producto"
-                />
+              <div v-if="isEditMode" class="px-3.5 pb-2.5 flex items-center gap-2.5">
+                <div class="apm-bar flex-1"><div :style="{ width: editPct + '%' }"></div></div>
+                <span class="text-xs font-semibold">{{ editPct }}% pagado</span>
               </div>
             </div>
+            <span v-if="isEditMode && nuevoTotal < Number(editingApartado?.total_abonado || 0)" class="apm-error">El total del apartado no puede ser menor que lo ya abonado.</span>
+            <span v-if="!isEditMode && primaExcede" class="apm-error">La prima no puede superar el total del apartado.</span>
           </div>
-        </div>
 
-        <!-- Total, Prima Inicial y Saldo -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
-          <div>
-            <span class="text-xs font-bold text-slate-600 block uppercase">Total del Apartado:</span>
-            <span class="text-2xl font-black text-slate-800">{{ formatCurrency(nuevoTotal) }}</span>
-          </div>
-          <div>
-            <label class="text-xs font-bold text-slate-700 block uppercase">
-              {{ isEditMode ? 'Total Abonado a la Fecha:' : 'Prima / Abono Inicial:' }}
+          <!-- Plazo -->
+          <div class="apm-section apm-sep">
+            <span class="apm-sec-title">{{ isEditMode ? 'Plazo' : 'Plazo y método' }}</span>
+            <div class="grid grid-cols-2 gap-3" :class="isEditMode ? 'sm:grid-cols-3' : 'sm:grid-cols-4'">
+              <label class="apm-field">
+                <span class="apm-lbl">Fecha emisión</span>
+                <input v-model="nuevoForm.fechaEmision" type="date" class="apm-input" />
+              </label>
+              <label class="apm-field">
+                <span class="apm-lbl apm-lbl-strong">Fecha límite</span>
+                <input v-model="nuevoForm.fechaLimite" type="date" class="apm-input font-semibold" />
+              </label>
+              <label class="apm-field">
+                <span class="apm-lbl">Cantidad de plazos</span>
+                <input v-model.number="nuevoForm.numeroPlazos" type="number" min="1" max="12" class="apm-input" placeholder="Ej: 3" />
+              </label>
+              <label v-if="!isEditMode" class="apm-field">
+                <span class="apm-lbl">Método de prima</span>
+                <div class="relative flex items-center">
+                  <select v-model="nuevoForm.paymentMethod" class="apm-input apm-select">
+                    <option v-for="o in paymentOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                  </select>
+                  <i class="pi pi-chevron-down apm-chev"></i>
+                </div>
+              </label>
+            </div>
+            <label v-if="isEditMode" class="apm-field">
+              <span class="apm-lbl">Observaciones</span>
+              <input v-model="nuevoForm.notas" class="apm-input" placeholder="Notas adicionales..." />
             </label>
-            <div v-if="isEditMode" class="text-2xl font-black text-emerald-700 mt-1">
-              {{ formatCurrency(editingApartado?.total_abonado || 0) }}
+            <div v-if="nuevoForm.numeroPlazos > 0 && nuevoTotal > 0" class="apm-info">
+              <i class="pi pi-info-circle apm-blue"></i>
+              <div class="flex flex-col min-w-0">
+                <span class="font-semibold">Cuota sugerida por plazo ({{ nuevoForm.numeroPlazos }} plazos)</span>
+                <span class="text-xs apm-muted">Dividido equitativamente entre los {{ nuevoForm.numeroPlazos }} plazos acordados</span>
+              </div>
+              <span class="ml-auto text-base font-bold tabular-nums whitespace-nowrap" style="color:#08467F">
+                {{ formatCurrency((nuevoTotal - (nuevoForm.primaMonto || 0)) / Math.max(1, (nuevoForm.primaMonto > 0 ? (nuevoForm.numeroPlazos - 1) : (nuevoForm.numeroPlazos || 1)))) }}
+              </span>
             </div>
-            <InputNumber
-              v-else
-              v-model="nuevoForm.primaMonto"
-              mode="currency"
-              currency="NIO"
-              locale="es-NI"
-              :min="0"
-              :max="nuevoTotal"
-              fluid
-              class="mt-1 font-black text-emerald-700"
-              placeholder="C$ 0.00"
-            />
-          </div>
-          <div>
-            <span class="text-xs font-bold text-slate-600 block uppercase">Saldo Restante:</span>
-            <span class="text-2xl font-black text-amber-700">
-              {{ formatCurrency(Math.max(0, nuevoTotal - (isEditMode ? Number(editingApartado?.total_abonado || 0) : (nuevoForm.primaMonto || 0)))) }}
-            </span>
           </div>
         </div>
 
-        <!-- Fecha Emisión, Fecha Límite, Plazos y Método de Pago -->
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Emisión</label>
-            <InputText type="date" v-model="nuevoForm.fechaEmision" class="w-full text-sm font-bold text-amber-900" />
-          </div>
-          <div>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Fecha Límite</label>
-            <InputText type="date" v-model="nuevoForm.fechaLimite" class="w-full text-sm" />
-          </div>
-          <div>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Cantidad de Plazos</label>
-            <InputNumber
-              v-model="nuevoForm.numeroPlazos"
-              :min="1"
-              :max="12"
-              fluid
-              class="w-full text-sm font-bold"
-              placeholder="Ej: 3"
-            />
-          </div>
-          <div v-if="!isEditMode">
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Método de Prima</label>
-            <Select
-              v-model="nuevoForm.paymentMethod"
-              :options="paymentOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full text-sm"
-            />
-          </div>
-          <div v-else>
-            <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Observaciones</label>
-            <InputText v-model="nuevoForm.notas" placeholder="Notas adicionales..." class="w-full text-sm" />
-          </div>
-        </div>
-
-        <!-- Calculadora Resumen Cuota Estimada -->
-        <div v-if="nuevoForm.numeroPlazos > 0 && nuevoTotal > 0" class="bg-cyan-50/80 p-3 rounded-xl border border-cyan-200 flex justify-between items-center text-xs">
-          <div>
-            <span class="font-bold text-cyan-900 block">Cuota Sugerida por Plazo ({{ nuevoForm.numeroPlazos }} plazos):</span>
-            <span class="text-[11px] text-cyan-700">Dividido equitativamente entre los {{ nuevoForm.numeroPlazos }} plazos acordados</span>
-          </div>
-          <span class="font-black text-cyan-950 text-base font-mono">
-            {{ formatCurrency((nuevoTotal - (nuevoForm.primaMonto || 0)) / Math.max(1, (nuevoForm.primaMonto > 0 ? (nuevoForm.numeroPlazos - 1) : (nuevoForm.numeroPlazos || 1)))) }}
-          </span>
+        <div class="apm-foot">
+          <span v-if="!isEditMode && nuevoHint" class="text-xs apm-muted mr-auto">{{ nuevoHint }}</span>
+          <button class="apm-btn-secondary" :class="{ 'ml-auto': isEditMode || !nuevoHint }" @click="nuevoModalVisible = false">Cancelar</button>
+          <button
+            class="apm-btn-primary"
+            :disabled="isSaving || nuevoForm.items.length === 0 || !nuevoForm.customerName || nuevoTotal <= 0 || (!isEditMode && primaExcede)"
+            @click="handleGuardarApartado"
+          >
+            <i :class="isSaving ? 'pi pi-spin pi-spinner' : (isEditMode ? 'pi pi-save' : 'pi pi-check')" class="text-xs"></i>
+            {{ isEditMode ? 'Guardar Cambios' : 'Crear Apartado' }}
+          </button>
         </div>
       </div>
-
-      <template #footer>
-        <Button label="Cancelar" text severity="secondary" @click="nuevoModalVisible = false" />
-        <Button
-          :label="isEditMode ? 'Guardar Cambios' : 'Crear Apartado'"
-          :icon="isEditMode ? 'pi pi-save' : 'pi pi-check'"
-          severity="success"
-          :loading="isSaving"
-          :disabled="nuevoForm.items.length === 0 || !nuevoForm.customerName || nuevoTotal <= 0"
-          @click="handleGuardarApartado"
-          class="!font-bold !px-5"
-        />
-      </template>
     </Dialog>
 
-    <!-- MODAL 2: REGISTRAR ABONO -->
+    <!-- MODAL 2: REGISTRAR ABONO (diseño 4c) -->
     <Dialog
       v-model:visible="abonoModalVisible"
-      header="Registrar Abono a Cuenta"
       modal
-      class="w-full max-w-md"
+      :showHeader="false"
+      :style="{ width: '500px' }"
+      :breakpoints="{ '540px': '95vw' }"
+      :pt="apmPt"
     >
-      <div class="space-y-4 py-2" v-if="selectedApartado">
-        <!-- Info del Apartado -->
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div class="flex justify-between items-center text-sm">
-            <span class="font-bold text-slate-800">{{ selectedApartado.customer_name }}</span>
-            <span class="font-mono text-xs bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">
-              {{ selectedApartado.codigo_apartado }}
-            </span>
+      <div class="apm" v-if="selectedApartado">
+        <div class="apm-head">
+          <div class="flex flex-col min-w-0">
+            <span class="apm-eyebrow">Plan Separe / Cascos &amp; Accesorios</span>
+            <span class="apm-title">Registrar Abono a Cuenta</span>
           </div>
-          <div class="flex justify-between items-center text-xs mt-2 text-slate-600">
-            <span>Saldo Pendiente:</span>
-            <span class="font-black text-rose-600 text-base">{{ formatCurrency(selectedApartado.saldo_pendiente) }}</span>
+          <button class="apm-close" title="Cerrar" aria-label="Cerrar" @click="abonoModalVisible = false"><i class="pi pi-times"></i></button>
+        </div>
+
+        <div class="apm-body !gap-4">
+          <div class="apm-box apm-soft px-3.5 py-3 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[15px] font-bold truncate">{{ selectedApartado.customer_name }}</span>
+              <span class="apm-chip">{{ selectedApartado.codigo_apartado }}</span>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <span class="apm-muted">Saldo pendiente</span>
+              <span class="text-xl font-bold apm-blue tabular-nums">{{ formatCurrency(selectedApartado.saldo_pendiente) }}</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <div class="apm-bar apm-bar-dual flex-1">
+                <div class="apm-bar-next" :style="{ width: abonoPct.after + '%' }"></div>
+                <div :style="{ width: abonoPct.now + '%' }"></div>
+              </div>
+              <span class="text-xs apm-muted whitespace-nowrap">{{ abonoPct.now }}% → <b class="text-[#181818]">{{ abonoPct.after }}%</b></span>
+            </div>
+          </div>
+
+          <label class="apm-field">
+            <span class="apm-lbl apm-lbl-strong">Monto a abonar (C$)</span>
+            <div class="relative flex items-center">
+              <span class="absolute left-3 text-base font-semibold apm-muted">C$</span>
+              <input v-model.number="abonoForm.monto" type="number" min="0" step="0.01" class="apm-input apm-input-lg tabular-nums" placeholder="0.00" />
+            </div>
+            <span v-if="abonoExcede" class="apm-error">El abono no puede superar el saldo pendiente ({{ formatCurrency(selectedApartado.saldo_pendiente) }}).</span>
+          </label>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="apm-field">
+              <span class="apm-lbl">Fecha del abono</span>
+              <input v-model="abonoForm.fechaAbono" type="date" class="apm-input" />
+            </label>
+            <label class="apm-field">
+              <span class="apm-lbl">Método de pago</span>
+              <div class="relative flex items-center">
+                <select v-model="abonoForm.paymentMethod" class="apm-input apm-select">
+                  <option v-for="o in paymentOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+                </select>
+                <i class="pi pi-chevron-down apm-chev"></i>
+              </div>
+            </label>
+          </div>
+
+          <label v-if="abonoForm.paymentMethod === 'efectivo'" class="apm-field">
+            <span class="apm-lbl">Monto entregado por cliente <span class="text-[#706E6B]">(ej: 3 billetes de C$500 = C$1500)</span></span>
+            <div class="relative flex items-center">
+              <span class="absolute left-2.5 font-semibold apm-muted">C$</span>
+              <input v-model.number="abonoForm.amountReceived" type="number" min="0" step="0.01" class="apm-input !pl-8 font-semibold text-sm tabular-nums" placeholder="0.00" />
+            </div>
+            <span class="text-[11px] apm-muted">Ingresa el total que te entregó el cliente para calcular el vuelto exacto.</span>
+            <span v-if="abonoForm.amountReceived > 0 && abonoForm.amountReceived < (abonoForm.monto || 0)" class="apm-error">El monto entregado es menor que el abono.</span>
+          </label>
+
+          <div class="apm-box flex flex-col">
+            <div v-if="abonoForm.paymentMethod === 'efectivo' && abonoForm.amountReceived > abonoForm.monto" class="flex justify-between items-baseline px-3.5 py-2.5 border-b border-[#E5E5E5]">
+              <span class="apm-muted">Vuelto a entregar</span>
+              <span class="text-[15px] font-bold tabular-nums">{{ formatCurrency(abonoForm.amountReceived - abonoForm.monto) }}</span>
+            </div>
+            <div class="flex justify-between items-baseline px-3.5 py-2.5">
+              <span class="font-bold">Nuevo saldo restante</span>
+              <span class="text-lg font-bold tabular-nums">{{ formatCurrency(Math.max(0, selectedApartado.saldo_pendiente - (abonoForm.monto || 0))) }}</span>
+            </div>
           </div>
         </div>
 
-        <!-- Monto a Abonar -->
-        <div>
-          <label class="text-xs font-bold text-slate-700 uppercase block mb-1">Monto a Abonar (C$)</label>
-          <InputNumber
-            v-model="abonoForm.monto"
-            mode="currency"
-            currency="NIO"
-            locale="es-NI"
-            :max="selectedApartado.saldo_pendiente"
-            fluid
-            class="text-xl font-black"
-            placeholder="C$ 0.00"
-          />
-        </div>
-
-        <!-- Fecha del Abono y Método de Pago -->
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Fecha del Abono</label>
-            <InputText
-              type="date"
-              v-model="abonoForm.fechaAbono"
-              class="w-full text-xs font-bold"
-            />
-          </div>
-          <div>
-            <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Método de Pago</label>
-            <Select
-              v-model="abonoForm.paymentMethod"
-              :options="paymentOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="w-full text-xs"
-            />
-          </div>
-        </div>
-
-        <!-- Billete Recibido si es Efectivo -->
-        <div v-if="abonoForm.paymentMethod === 'efectivo'">
-          <label class="text-[11px] font-bold text-slate-600 block uppercase mb-1">Monto Entregado por Cliente (Ej: 3 billetes de C$500 = C$1500)</label>
-          <InputNumber
-            v-model="abonoForm.amountReceived"
-            mode="currency"
-            currency="NIO"
-            locale="es-NI"
-            fluid
-            class="text-xs font-bold"
-            placeholder="C$ 0.00"
-          />
-          <small class="text-[10px] text-slate-500 mt-0.5 block">
-            Ingresa el total que te entregó el cliente para calcular el vuelto exacto.
-          </small>
-        </div>
-
-        <!-- Vuelto Calculado -->
-        <div
-          v-if="abonoForm.paymentMethod === 'efectivo' && abonoForm.amountReceived > abonoForm.monto"
-          class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex justify-between items-center text-xs"
-        >
-          <span class="font-bold text-emerald-800">Vuelto al cliente:</span>
-          <span class="font-black text-emerald-700 text-sm">
-            {{ formatCurrency(abonoForm.amountReceived - abonoForm.monto) }}
-          </span>
-        </div>
-
-        <!-- Saldo Nuevo Calculado -->
-        <div class="flex justify-between items-center border-t border-slate-200 pt-3 text-sm">
-          <span class="font-bold text-slate-600">Nuevo Saldo Restante:</span>
-          <span class="font-black text-slate-800">
-            {{ formatCurrency(Math.max(0, selectedApartado.saldo_pendiente - (abonoForm.monto || 0))) }}
-          </span>
+        <div class="apm-foot">
+          <button class="apm-btn-secondary ml-auto" @click="abonoModalVisible = false">Cancelar</button>
+          <button class="apm-btn-primary" :disabled="isSaving || !abonoForm.monto || abonoForm.monto <= 0 || abonoExcede" @click="handleGuardarAbono">
+            <i :class="isSaving ? 'pi pi-spin pi-spinner' : 'pi pi-print'" class="text-xs"></i>Confirmar Abono e Imprimir
+          </button>
         </div>
       </div>
-
-      <template #footer>
-        <Button label="Cancelar" text severity="secondary" @click="abonoModalVisible = false" />
-        <Button
-          label="Confirmar Abono e Imprimir"
-          icon="pi pi-print"
-          severity="success"
-          :loading="isSaving"
-          :disabled="!abonoForm.monto || abonoForm.monto <= 0"
-          @click="handleGuardarAbono"
-          class="!font-bold !px-5"
-        />
-      </template>
     </Dialog>
 
-    <!-- MODAL 3: HISTORIAL DETALLADO DEL APARTADO -->
+    <!-- MODAL 3: HISTORIAL DETALLADO DEL APARTADO (diseño 4d) -->
     <Dialog
       v-model:visible="detalleModalVisible"
-      header="Detalle e Historial de Abonos"
       modal
-      class="w-full max-w-lg"
+      :showHeader="false"
+      :style="{ width: '560px' }"
+      :breakpoints="{ '600px': '95vw' }"
+      :pt="apmPt"
     >
-      <div v-if="selectedApartado" class="space-y-4 py-2">
-        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div>
-            <div class="font-bold text-slate-800">{{ selectedApartado.customer_name }}</div>
-            <div class="text-xs text-slate-400">Creado el: {{ formatDateOnly(selectedApartado.created_at) }}</div>
+      <div class="apm" v-if="selectedApartado">
+        <div class="apm-head">
+          <div class="flex flex-col min-w-0">
+            <span class="apm-eyebrow">Plan Separe / Cascos &amp; Accesorios</span>
+            <span class="apm-title">Detalle e Historial de Abonos</span>
           </div>
-          <Tag :value="getStatusLabel(selectedApartado.status)" :severity="getStatusSeverity(selectedApartado.status)" />
+          <button class="apm-close" title="Cerrar" aria-label="Cerrar" @click="detalleModalVisible = false"><i class="pi pi-times"></i></button>
         </div>
 
-        <!-- Lista de Abonos -->
-        <div>
-          <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Historial de Pagos Realizados</h4>
-          <div class="space-y-2 max-h-56 overflow-y-auto">
-            <div
-              v-for="abono in selectedApartado.abonos"
-              :key="abono.id"
-              class="flex justify-between items-center p-2.5 bg-white border border-slate-200 rounded-lg text-xs"
-            >
-              <div>
-                <span class="font-bold text-slate-700">Abono #{{ abono.numero_abono }}</span>
-                <span class="text-slate-400 block text-[10px]">{{ formatDate(abono.created_at) }} ({{ abono.payment_method }})</span>
+        <div class="apm-body !gap-4">
+          <div class="apm-box apm-soft">
+            <div class="px-3.5 py-3 flex items-start justify-between gap-3">
+              <div class="flex flex-col min-w-0">
+                <span class="text-[15px] font-bold">{{ selectedApartado.customer_name }}</span>
+                <span class="text-xs apm-muted"><span class="apm-blue font-semibold">{{ selectedApartado.codigo_apartado }}</span> · Creado el {{ formatDateOnly(selectedApartado.created_at) }}</span>
               </div>
-              <div class="flex items-center gap-3">
-                <div class="text-right">
-                  <span class="font-black text-emerald-600 block text-sm">{{ formatCurrency(abono.monto) }}</span>
-                  <span class="text-[10px] text-slate-400">Saldo: {{ formatCurrency(abono.saldo_nuevo) }}</span>
-                </div>
-                <Button 
-                  icon="pi pi-image" 
-                  text 
-                  rounded 
-                  severity="info" 
-                  size="small"
-                  @click="descargarComprobanteImagen(selectedApartado, abono)" 
-                  title="Descargar este Recibo de Abono como Imagen (PNG)" 
-                />
-                <Button 
-                  icon="pi pi-print" 
-                  text 
-                  rounded 
-                  severity="secondary" 
-                  size="small"
-                  @click="imprimirAbono(selectedApartado, abono)" 
-                  title="Reimprimir Recibo de este Abono" 
-                />
-              </div>
+              <span class="apm-pill" :class="'apm-pill-' + selectedApartado.status">{{ getStatusLabel(selectedApartado.status) }}</span>
             </div>
-            <div v-if="!selectedApartado.abonos || selectedApartado.abonos.length === 0" class="text-xs text-slate-400 text-center py-2">
-              No hay abonos registrados.
+            <div class="grid grid-cols-3 border-t border-[#E5E5E5]">
+              <div class="px-3.5 py-2"><div class="apm-cell-l">Total</div><div class="font-bold tabular-nums">{{ formatCurrency(selectedApartado.total) }}</div></div>
+              <div class="px-3.5 py-2 border-l border-[#E5E5E5]"><div class="apm-cell-l">Pagado</div><div class="font-bold tabular-nums">{{ formatCurrency(selectedApartado.total_abonado) }}</div></div>
+              <div class="px-3.5 py-2 border-l border-[#E5E5E5]"><div class="apm-cell-l">Saldo</div><div class="font-bold apm-blue tabular-nums">{{ formatCurrency(selectedApartado.saldo_pendiente) }}</div></div>
+            </div>
+            <div class="px-3.5 pb-2.5 flex items-center gap-2.5">
+              <div class="apm-bar flex-1"><div :style="{ width: detallePct + '%', background: detallePct >= 100 ? '#2E844A' : '#0B6BCB' }"></div></div>
+              <span class="text-xs font-semibold">{{ detallePct }}% pagado</span>
             </div>
           </div>
+
+          <div class="apm-section">
+            <span class="apm-sec-title">Historial de pagos realizados</span>
+            <div class="apm-box overflow-hidden">
+              <div class="apm-hist-row apm-items-head">
+                <span>Abono</span><span class="text-right">Monto</span><span class="text-right">Saldo</span><span></span>
+              </div>
+              <div class="max-h-64 overflow-y-auto">
+                <div v-for="abono in selectedApartado.abonos" :key="abono.id" class="apm-hist-row apm-hist-line">
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-bold">Abono #{{ abono.numero_abono }}</span>
+                    <span class="text-xs apm-muted truncate">{{ formatDate(abono.created_at) }} · {{ abono.payment_method }}</span>
+                  </div>
+                  <span class="text-right text-[15px] font-bold tabular-nums">{{ formatCurrency(abono.monto) }}</span>
+                  <span class="text-right apm-muted tabular-nums">{{ formatCurrency(abono.saldo_nuevo) }}</span>
+                  <div class="apm-seg justify-self-end">
+                    <button title="Descargar imagen del abono" aria-label="Descargar imagen del abono" @click="descargarComprobanteImagen(selectedApartado, abono)"><i class="pi pi-image"></i></button>
+                    <span></span>
+                    <button title="Imprimir abono" aria-label="Imprimir abono" @click="imprimirAbono(selectedApartado, abono)"><i class="pi pi-print"></i></button>
+                  </div>
+                </div>
+                <div v-if="!selectedApartado.abonos || selectedApartado.abonos.length === 0" class="px-3 py-4 text-center apm-muted border-t border-[#E5E5E5]">
+                  No hay abonos registrados.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="apm-foot flex-wrap">
+          <button class="apm-btn-neutral" @click="compartirWhatsApp(selectedApartado)"><i class="pi pi-whatsapp text-xs"></i>WhatsApp</button>
+          <button class="apm-btn-neutral" @click="descargarComprobanteImagen(selectedApartado)"><i class="pi pi-image text-xs"></i>Descargar Imagen (PNG)</button>
+          <button class="apm-btn-secondary sm:ml-auto" @click="detalleModalVisible = false">Cerrar</button>
+          <button class="apm-btn-primary" @click="imprimirComprobante(selectedApartado)"><i class="pi pi-print text-xs"></i>Imprimir Ticket</button>
         </div>
       </div>
-
-      <template #footer>
-        <div class="flex flex-wrap justify-between items-center w-full gap-2">
-          <div class="flex gap-2">
-            <Button
-              label="WhatsApp"
-              icon="pi pi-whatsapp"
-              severity="success"
-              text
-              @click="compartirWhatsApp(selectedApartado)"
-            />
-            <Button
-              label="Descargar Imagen (PNG)"
-              icon="pi pi-image"
-              severity="info"
-              @click="descargarComprobanteImagen(selectedApartado)"
-            />
-          </div>
-          <div class="flex gap-2">
-            <Button label="Cerrar" text severity="secondary" @click="detalleModalVisible = false" />
-            <Button
-              label="Imprimir Ticket"
-              icon="pi pi-print"
-              severity="warn"
-              @click="imprimirComprobante(selectedApartado)"
-            />
-          </div>
-        </div>
-      </template>
     </Dialog>
 
     <!-- MODAL 4: DEVOLUCIÓN COMPLETA DE APARTADO -->
@@ -806,16 +639,9 @@ import { useBusinessStore } from '../stores/businessStore'
 import { useConfirm } from 'primevue/useconfirm'
 
 import Button from 'primevue/button'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
 import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Card from 'primevue/card'
 import Dialog from 'primevue/dialog'
-import Tag from 'primevue/tag'
 import Select from 'primevue/select'
-import IconField from 'primevue/iconfield'
-import InputIcon from 'primevue/inputicon'
 import ConfirmDialog from 'primevue/confirmdialog'
 import ReceiptAbonoTicket from '../components/sales/ReceiptAbonoTicket.vue'
 import ApartadoDigitalVoucher from '../components/sales/ApartadoDigitalVoucher.vue'
@@ -1348,4 +1174,327 @@ const getProgressColor = (data) => {
 
 const formatDate = (ds) => formatDateTime(ds)
 const formatDateOnly = (ds) => formatDateOnlyHelper(ds)
+
+// ---- Plan Separe: modales (diseño 4a–4d) ----
+const apmPt = {
+  root: { style: 'border:0;border-radius:4px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.25)' },
+  content: { style: 'padding:0' }
+}
+
+const pctOf = (paid, total) => Math.max(0, Math.min(100, Math.round((Number(paid || 0) / (Number(total) || 1)) * 100)))
+
+const primaExcede = computed(() => Number(nuevoForm.value.primaMonto || 0) > nuevoTotal.value)
+
+const nuevoSaldoRestante = computed(() => Math.max(0, nuevoTotal.value - (isEditMode.value
+  ? Number(editingApartado.value?.total_abonado || 0)
+  : Number(nuevoForm.value.primaMonto || 0))))
+
+const editPct = computed(() => pctOf(editingApartado.value?.total_abonado, nuevoTotal.value))
+
+const nuevoHint = computed(() => {
+  const faltaCliente = !nuevoForm.value.customerName
+  const faltaProducto = nuevoForm.value.items.length === 0
+  if (faltaCliente && faltaProducto) return 'Agrega el cliente y al menos un producto'
+  if (faltaCliente) return 'Falta el nombre del cliente'
+  if (faltaProducto) return 'Agrega al menos un producto'
+  return ''
+})
+
+const abonoExcede = computed(() =>
+  Number(abonoForm.value.monto || 0) > Number(selectedApartado.value?.saldo_pendiente || 0) + 0.001)
+
+const abonoPct = computed(() => {
+  const a = selectedApartado.value
+  if (!a) return { now: 0, after: 0 }
+  const paid = Number(a.total_abonado || 0)
+  return { now: pctOf(paid, a.total), after: pctOf(paid + Number(abonoForm.value.monto || 0), a.total) }
+})
+
+const detallePct = computed(() => pctOf(selectedApartado.value?.total_abonado, selectedApartado.value?.total))
+
+// ---- Plan Separe: vista de lista (diseño 3a escritorio / 3b móvil) ----
+const SOON_DAYS = 14
+
+const clearFilters = () => {
+  searchQuery.value = ''
+  statusFilter.value = 'all'
+}
+
+const countLabel = computed(() => {
+  if (isLoading.value) return 'Cargando…'
+  const n = filteredApartados.value.length
+  return n + (n === 1 ? ' apartado' : ' apartados')
+})
+
+const daysUntil = (ds) => {
+  if (!ds) return null
+  const [y, m, d] = String(ds).slice(0, 10).split('-').map(Number)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((new Date(y, m - 1, d) - today) / 86400000)
+}
+
+const rowsView = computed(() => filteredApartados.value.map(a => {
+  const total = Number(a.total || 0)
+  const paid = Number(a.total_abonado || 0)
+  const saldo = Math.max(0, Number(a.saldo_pendiente ?? total - paid))
+  const pct = Math.min(100, Math.round((paid / (total || 1)) * 100))
+  const enPagos = a.status === 'activo'
+  const days = daysUntil(a.fecha_limite)
+  const isSoon = enPagos && days !== null && days <= SOON_DAYS
+
+  let dueHint = ''
+  if (a.status === 'cancelado') dueHint = 'Devuelto'
+  else if (a.status === 'entregado') dueHint = 'Entregado al cliente'
+  else if (saldo <= 0) dueHint = 'Pagado en su totalidad'
+  else if (days === null) dueHint = ''
+  else if (days < 0) dueHint = 'Vencido hace ' + (-days) + ' días'
+  else if (days === 0) dueHint = '⚑ Vence hoy'
+  else dueHint = (isSoon ? '⚑ Vence en ' : 'en ') + days + ' días'
+
+  const products = (a.items || []).map(i => i.product_name + (Number(i.qty) > 1 ? ` (x${i.qty})` : ''))
+  const more = products.length - 2
+
+  const acts = [
+    { key: 'comprobante', label: 'Descargar comprobante de pago', icon: 'pi pi-image', run: () => descargarComprobanteImagen(a) },
+    { key: 'imprimir', label: 'Imprimir', icon: 'pi pi-print', run: () => imprimirComprobante(a) },
+    { key: 'whatsapp', label: 'Enviar mensaje de WhatsApp', icon: 'pi pi-whatsapp', run: () => compartirWhatsApp(a) },
+    (a.status === 'activo' || a.status === 'liquidado') && { key: 'editar', label: 'Editar', icon: 'pi pi-pencil', group: 1, run: () => openEditarModal(a) },
+    a.status === 'activo' && { key: 'abono', label: 'Registrar abono', icon: 'pi pi-plus-circle', group: 2, run: () => openAbonarModal(a) },
+    a.status === 'liquidado' && { key: 'entregar', label: 'Entregar producto al cliente', icon: 'pi pi-check-circle', group: 2, run: () => confirmarEntrega(a) },
+    { key: 'historial', label: 'Ver historial de abonos', icon: 'pi pi-eye', group: 2, run: () => openDetalleModal(a) },
+    a.status !== 'cancelado' && { key: 'devolucion', label: 'Devolución completa', icon: 'pi pi-undo', group: 3, danger: true, run: () => openDevolucionModal(a) }
+  ].filter(Boolean)
+  // Separador visual al cambiar de grupo: comprobante·imprimir·WhatsApp | editar | abono·historial | devolución
+  acts.forEach((act, i) => { act.sep = i > 0 && (act.group || 0) !== (acts[i - 1].group || 0) })
+
+  return {
+    id: a.id,
+    code: a.codigo_apartado,
+    client: a.customer_name,
+    phone: a.customer_phone,
+    products,
+    moreLabel: more > 0 ? `+${more} producto${more > 1 ? 's' : ''}` : '',
+    total, paid, saldo, pct,
+    issued: a.created_at ? formatDateOnly(a.created_at) : '—',
+    due: a.fecha_limite ? formatDateOnly(a.fecha_limite) : '—',
+    dueHint,
+    dueColor: isSoon || (days !== null && days < 0 && enPagos) ? '#B45309' : '#5C5C5C',
+    dueWeight: isSoon ? 700 : 400,
+    saldoColor: saldo <= 0 ? '#706E6B' : '#181818',
+    barColor: saldo <= 0 ? '#2E844A' : '#0B6BCB',
+    statusLabel: getStatusLabel(a.status),
+    pillClass: 'ap-pill-' + (a.status || 'entregado'),
+    acts
+  }
+}))
 </script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap');
+
+/* Plan Separe v3 — módulo empresarial claro (estilo Lightning), acotado a esta vista */
+.ap {
+  --ap-bg: #F3F3F3;
+  --ap-line: #E5E5E5;
+  --ap-field: #C9C9C9;
+  --ap-text: #181818;
+  --ap-muted: #5C5C5C;
+  --ap-icon: #706E6B;
+  --ap-blue: #0B6BCB;
+  --ap-blue-h: #0A5BAD;
+  --ap-blue-a: #084B8E;
+  --ap-blue-soft: #E3EEFA;
+  --ap-row-h: #F3F8FD;
+  font: 13px/1.45 "Barlow", system-ui, sans-serif;
+  color: var(--ap-text);
+}
+.ap-muted { color: var(--ap-muted); }
+.ap-icon { color: var(--ap-icon); }
+.ap-blue { color: var(--ap-blue); }
+
+.ap-panel { background: #fff; border: 1px solid var(--ap-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, .05); }
+.ap-badge { width: 32px; height: 32px; flex: none; border-radius: 4px; background: var(--ap-blue); color: #fff; display: flex; align-items: center; justify-content: center; }
+.ap-eyebrow { font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ap-muted); }
+.ap-title { font-size: 17px; font-weight: 700; line-height: 1.25; }
+.ap-desc { font-size: 13px; color: var(--ap-muted); padding-left: 14px; margin-left: 2px; border-left: 1px solid var(--ap-line); }
+@media (min-width: 768px) { .ap-eyebrow { font-size: 11px; } .ap-title { font-size: 18px; } }
+
+.ap-kpis { border-top: 1px solid var(--ap-line); }
+.ap-kpi { padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ap-kpi:nth-child(even) { border-left: 1px solid var(--ap-line); }
+.ap-kpi:nth-child(-n+2) { border-bottom: 1px solid var(--ap-line); }
+@media (min-width: 768px) {
+  .ap-kpi { padding: 10px 16px; }
+  .ap-kpi + .ap-kpi { border-left: 1px solid var(--ap-line); }
+  .ap-kpi:nth-child(-n+2) { border-bottom: 0; }
+}
+.ap-kpi-l { font-size: 11px; color: var(--ap-muted); }
+.ap-kpi-v { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+@media (min-width: 768px) { .ap-kpi-v { font-size: 18px; } }
+
+.ap-btn-primary {
+  height: 32px; padding: 0 14px; display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: var(--ap-blue); color: #fff; border: 1px solid var(--ap-blue); border-radius: 4px;
+  font: 600 13px "Barlow", system-ui, sans-serif; cursor: pointer;
+}
+.ap-btn-primary:hover { background: var(--ap-blue-h); border-color: var(--ap-blue-h); }
+.ap-btn-primary:active { background: var(--ap-blue-a); }
+.ap-btn-lg { height: 44px; font-size: 14px; }
+.ap-btn-secondary {
+  height: 32px; padding: 0 14px; border: 1px solid var(--ap-field); border-radius: 4px; background: #fff;
+  color: var(--ap-blue); font: 600 13px "Barlow", system-ui, sans-serif; cursor: pointer;
+}
+.ap-btn-secondary:hover { background: var(--ap-bg); }
+
+.ap-toolbar { padding: 10px 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--ap-line); }
+@media (min-width: 768px) { .ap-toolbar { padding: 10px 16px; } }
+.ap-input {
+  width: 100%; height: 44px; padding: 0 10px; border: 1px solid var(--ap-field); border-radius: 4px;
+  background: #fff; font: 14px "Barlow", system-ui, sans-serif; color: var(--ap-text); outline: none;
+}
+.ap-input.pl-8 { padding-left: 30px; }
+.ap-input.pr-7 { padding-right: 26px; }
+.ap-input:focus { border-color: var(--ap-blue); box-shadow: 0 0 0 1px var(--ap-blue); }
+@media (min-width: 768px) { .ap-input { height: 32px; font-size: 13px; } }
+
+.ap-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ap-table th { background: var(--ap-bg); text-align: left; font-size: 11px; font-weight: 700; color: var(--ap-muted); padding: 7px 8px; }
+.ap-table td { padding: 9px 8px; border-top: 1px solid var(--ap-line); vertical-align: middle; }
+.ap-table tbody tr:hover { background: var(--ap-row-h); }
+.ap-code { color: var(--ap-blue); font-weight: 600; }
+
+.ap-pill { display: inline-flex; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; line-height: 1.35; max-width: 100%; }
+.ap-pill-activo { background: var(--ap-blue-soft); color: #08467F; }
+.ap-pill-liquidado { background: #E6F2EA; color: #1F5C33; }
+.ap-pill-entregado { background: #EDEDED; color: #444; }
+.ap-pill-cancelado { background: #FBE9E7; color: #8C2A1E; }
+
+.ap-bar { height: 6px; background: var(--ap-line); border-radius: 3px; overflow: hidden; }
+.ap-bar > div { height: 100%; border-radius: 3px; transition: width .3s; }
+
+.ap-actions { display: inline-flex; border: 1px solid var(--ap-field); border-radius: 4px; overflow: hidden; background: #fff; }
+.ap-sep { width: 1px; background: var(--ap-field); }
+.ap-act {
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--ap-muted); cursor: pointer; font-size: 13px;
+}
+.ap-act:hover { background: var(--ap-bg); color: var(--ap-blue); }
+.ap-act:active { background: var(--ap-blue-soft); }
+.ap-act:focus-visible, .ap-act-m:focus-visible { outline: 2px solid var(--ap-blue); outline-offset: -2px; }
+.ap-act-danger:hover { background: #FBE9E7; color: #BA0517; }
+
+.ap-rec { background: #fff; border: 1px solid var(--ap-line); border-radius: 4px; box-shadow: 0 2px 2px rgba(0, 0, 0, .05); min-width: 0; }
+.ap-rec-acts { display: flex; border-top: 1px solid var(--ap-line); }
+.ap-act-m {
+  flex: 1; height: 44px; display: flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: var(--ap-muted); cursor: pointer; font-size: 15px;
+}
+.ap-act-m:hover, .ap-act-m:active { background: var(--ap-blue-soft); color: var(--ap-blue); }
+
+.ap-empty { padding: 40px 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border-top: 1px solid var(--ap-line); }
+
+@keyframes ap-sk { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.ap-sk { animation: ap-sk 1.4s ease-in-out infinite; background: #EDEDED; border-radius: 2px; }
+/* ---- Modales Plan Separe (diseño 4a–4d) ---- */
+.apm { font: 13px/1.45 "Barlow", system-ui, sans-serif; color: #181818; background: #fff; display: flex; flex-direction: column; }
+.apm-muted { color: #5C5C5C; }
+.apm-blue { color: #0B6BCB; }
+.apm-head { padding: 14px 16px 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #E5E5E5; }
+.apm-eyebrow { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #5C5C5C; }
+.apm-title { font-size: 18px; font-weight: 700; line-height: 1.25; }
+.apm-close {
+  margin-left: auto; width: 32px; height: 32px; flex: none; display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 4px; background: transparent; color: #5C5C5C; cursor: pointer;
+}
+.apm-close:hover { background: #F3F3F3; border-color: #C9C9C9; }
+.apm-body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 18px; }
+.apm-foot { padding: 12px 20px; display: flex; align-items: center; gap: 8px; background: #F3F3F3; border-top: 1px solid #E5E5E5; }
+
+.apm-section { display: flex; flex-direction: column; gap: 8px; }
+.apm-sep { padding-top: 16px; border-top: 1px solid #E5E5E5; }
+.apm-sec-title { font-size: 12px; font-weight: 700; }
+.apm-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.apm-lbl { font-size: 12px; color: #5C5C5C; }
+.apm-lbl-strong { color: #181818; font-weight: 600; }
+.apm-req { color: #BA0517; }
+.apm-error { font-size: 12px; color: #BA0517; }
+
+.apm-input {
+  width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid #C9C9C9; border-radius: 4px;
+  background: #fff; font: inherit; font-size: 13px; color: #181818; outline: none;
+}
+.apm-input:focus { border-color: #0B6BCB; box-shadow: 0 0 0 1px #0B6BCB; }
+.apm-input[type="date"] { padding: 0 8px; }
+.apm-input-lg { height: 42px; padding-left: 40px; font-size: 18px; font-weight: 700; }
+.apm-select { appearance: none; padding-right: 28px; cursor: pointer; }
+.apm-chev { position: absolute; right: 9px; font-size: 10px; color: #706E6B; pointer-events: none; }
+
+.apm-pselect { height: 32px; border-color: #C9C9C9 !important; border-radius: 4px !important; box-shadow: none !important; }
+.apm-pselect :deep(.p-select-label) { padding: 0 10px; display: flex; align-items: center; font-size: 13px; }
+.apm-pselect.p-focus { border-color: #0B6BCB !important; box-shadow: 0 0 0 1px #0B6BCB !important; }
+
+.apm-btn-primary, .apm-btn-secondary, .apm-btn-neutral {
+  height: 32px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: 4px; font: 600 13px "Barlow", system-ui, sans-serif; cursor: pointer; white-space: nowrap;
+}
+.apm-btn-primary { background: #0B6BCB; color: #fff; border: 1px solid #0B6BCB; }
+.apm-btn-primary:hover:not(:disabled) { background: #0A5BAD; border-color: #0A5BAD; }
+.apm-btn-primary:active:not(:disabled) { background: #084B8E; }
+.apm-btn-primary:disabled { background: #C9C9C9; border-color: #C9C9C9; color: #fff; cursor: not-allowed; }
+.apm-btn-secondary { background: #fff; color: #0B6BCB; border: 1px solid #C9C9C9; }
+.apm-btn-secondary:hover:not(:disabled) { background: #F3F3F3; }
+.apm-btn-secondary:disabled { color: #A0A0A0; cursor: not-allowed; }
+.apm-btn-neutral { padding: 0 12px; background: #fff; color: #181818; border: 1px solid #C9C9C9; }
+.apm-btn-neutral:hover { background: #F3F3F3; color: #0B6BCB; }
+
+.apm-box { border: 1px solid #E5E5E5; border-radius: 4px; }
+.apm-soft { background: #FAFAF9; }
+.apm-empty-dashed { padding: 14px 10px; border: 1px dashed #C9C9C9; border-radius: 4px; text-align: center; color: #5C5C5C; }
+
+.apm-items-row { display: grid; gap: 8px; align-items: center; padding: 8px 10px; grid-template-columns: 64px minmax(0, 1fr) auto 32px; }
+.apm-items-line { border-top: 1px solid #E5E5E5; }
+.apm-items-line:first-child { border-top: 0; }
+.apm-item-desc { grid-column: 1 / -1; }
+@media (min-width: 640px) {
+  .apm-items-row { grid-template-columns: minmax(0, 1fr) 64px 120px 100px 32px; }
+  .apm-item-desc { grid-column: auto; }
+  .apm-items-line:first-child { border-top: 1px solid #E5E5E5; }
+}
+.apm-items-head { padding: 6px 10px; background: #F3F3F3; font-size: 11px; font-weight: 700; color: #5C5C5C; }
+
+.apm-icon-btn {
+  width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent; border-radius: 4px; background: transparent; color: #5C5C5C; cursor: pointer;
+}
+.apm-icon-danger:hover { background: #FDECEA; color: #BA0517; border-color: #F3C2C2; }
+
+.apm-cell { padding: 10px 14px; min-width: 0; }
+.apm-cells > .apm-cell + .apm-cell { border-top: 1px solid #E5E5E5; }
+@media (min-width: 640px) { .apm-cells > .apm-cell + .apm-cell { border-top: 0; border-left: 1px solid #E5E5E5; } }
+.apm-cell-l { font-size: 11px; color: #5C5C5C; }
+.apm-cell-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.apm-bar { height: 6px; background: #E5E5E5; border-radius: 3px; overflow: hidden; position: relative; }
+.apm-bar > div { height: 100%; background: #0B6BCB; transition: width .3s; }
+.apm-bar-dual > div { position: absolute; left: 0; top: 0; bottom: 0; }
+.apm-bar-dual > .apm-bar-next { background: #9CC3EC; }
+
+.apm-info { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #C7DDF5; border-radius: 4px; background: #F3F8FD; }
+.apm-chip { padding: 2px 8px; border: 1px solid #C9C9C9; border-radius: 4px; background: #fff; color: #0B6BCB; font-weight: 600; font-size: 12px; white-space: nowrap; }
+
+.apm-pill { display: inline-flex; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.apm-pill-activo { background: #E3EEFA; color: #08467F; }
+.apm-pill-liquidado { background: #E6F2EA; color: #1F5C33; }
+.apm-pill-entregado { background: #EDEDED; color: #444; }
+.apm-pill-cancelado { background: #FBE9E7; color: #8C2A1E; }
+
+.apm-hist-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px 96px 60px; gap: 8px; align-items: center; padding: 6px 12px; }
+.apm-hist-line { padding: 10px 12px; border-top: 1px solid #E5E5E5; }
+.apm-hist-line:hover { background: #F3F8FD; }
+@media (max-width: 480px) { .apm-hist-row { grid-template-columns: minmax(0, 1fr) 84px 60px; } .apm-hist-row > :nth-child(3) { display: none; } }
+.apm-seg { display: inline-flex; border: 1px solid #C9C9C9; border-radius: 4px; overflow: hidden; }
+.apm-seg > span { width: 1px; background: #C9C9C9; }
+.apm-seg > button { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 0; background: #fff; color: #5C5C5C; cursor: pointer; font-size: 12px; }
+.apm-seg > button:hover { background: #F3F3F3; color: #0B6BCB; }
+</style>
